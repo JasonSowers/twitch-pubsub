@@ -1,0 +1,32 @@
+{
+  "name": "twitch-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "node": "12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JasonSowers/twitch-api.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JasonSowers/twitch-api/issues"
+  },
+  "homepage": "https://github.com/JasonSowers/twitch-api#readme",
+  "dependencies": {
+    "@callowcreation/basic-twitch-oauth": "^1.0.10",
+    "azure-storage": "^2.10.3",
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "node-fetch": "^2.6.1",
+    "ws": "^7.4.3"
+  }
+}
