@@ -60,7 +60,7 @@ async function insertBroadcaster({ channel_id, refresh_token, reward_id }) {
 	return insertBroadcaster;
 }
 
-async function getChannelItem(channel_id) {
+async function getBroadcasterEntry(channel_id) {
 	const retrieveResult = await new Promise(resolve => {
 		tableSvc.retrieveEntity(tableNameBroadcasters, partitionBroadcasters, channel_id, function (error, result, response) {
 			resolve({ error, result, response });
@@ -109,7 +109,7 @@ async function connect() {
 
 module.exports = {
 	connect,
-	getChannelItem,
+	getBroadcasterEntry,
 	getBroadcasterEntries,
 	insertBroadcaster,
 	insertRedemption

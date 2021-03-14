@@ -111,11 +111,17 @@ function connect() {
 			case 'MESSAGE':
 
 				const message = JSON.parse(value.data.message);
-				const redemption_id = message.data.redemption.id;
+				const redemption = message.data.redemption;
+				const redemption_id = redemption.id;
+				const channel_id = redemption.channel_id;
+				const reward_id = redemption.reward.id;
+
+				const result = await twitchRequest.getCustomRewardCard(channel_id, reward_id);
+
+				console.log({ result });
+
 				if (recentIds.includes(redemption_id)) break;
 				recentIds.push(redemption_id);
-				const channel_id = message.data.redemption.channel_id;
-				const reward_id = message.data.redemption.reward.id;
 
 				storage.insertRedemption({ channel_id, redemption_id, reward_id });
 				console.log(message.data);

@@ -112,29 +112,21 @@ app.post('/action/create', async (req, res) => {
 
 		const { channel_id, refresh_token, title, prompt, cost } = req.body;
 
-		await createTokensIfNeeded(channel_id, refresh_token);
+		const state = { channel_id, title, prompt, cost };
 
-		const result = await twitchRequest.getCustomRewards(channel_id);
+		const result = await new Promise((resolve, reject) => {
+			state.resolve = resolve;
+			state.reject = reject;
+			resolve(refresh_token);
+		})
+			.then(asPromiseWithState(createTokensIfNeeded, state))
+			.then(asPromiseWithState(getCustomRewards, state))
+			.then(asPromiseWithState(createCustomReward, state))
+			.then(asPromiseWithState(insertBroadcaster, state))
+			.then(asPromiseWithState(listenToChannel, state))
+			.catch(e => console.log(e));
 
-		let reward = result.data ? result.data.find(x => x.title === title) : null;
-
-		if (!reward) {
-			const data = {
-				title: title,
-				cost: cost,
-				prompt: prompt,
-				should_redemptions_skip_request_queue: false
-			};
-
-			reward = await twitchRequest.createCustomReward(channel_id, data)
-				.then(({ data }) => data[0])
-				.catch(e => console.error(e));
-		}
-
-		const store = twitchRequest.getTokenStore(channel_id);
-		storage.insertBroadcaster({ channel_id, refresh_token: store.refresh_token, reward_id: reward.id });
-
-		pubsub.listenToChannel(channel_id);
+		console.log({ result });
 		res.status(204).end();
 	} catch (error) {
 		res.status(500).send(error.message);
@@ -164,13 +156,61 @@ app.listen(port, () => {
 	open(twitchRequest.authorizeUrl);
 });
 
-async function createTokensIfNeeded(channel_id, refresh_token) {
-	if (!twitchRequest.getTokenStore(channel_id)) {
+function asPromiseWithState(f, state) {
+	return (input_arg) => {
+		return new Promise((resolve, reject) => {
+			state.resolve = resolve;
+			state.reject = reject;
+			f(state, input_arg);
+		});
+	};
+}
+
+async function listenToChannel(state) {
+	pubsub.listenToChannel(state.channel_id);
+}
+
+async function insertBroadcaster(state, reward) {
+	const store = twitchRequest.getTokenStore(state.channel_id);
+	storage.insertBroadcaster({ channel_id: state.channel_id, refresh_token: store.refresh_token, reward_id: reward.id })
+		.catch(e => state.reject(e));
+	state.resolve();
+}
+
+async function createCustomReward(state, result) {
+	let reward = result.data ? result.data.find(x => x.title === state.title) : null;
+
+	if (reward) state.resolve(reward);
+
+	const data = {
+		title: state.title,
+		cost: state.cost,
+		prompt: state.prompt,
+		should_redemptions_skip_request_queue: false
+	};
+
+	reward = await twitchRequest.createCustomReward(state.channel_id, data)
+		.then(({ data }) => data[0])
+		.catch(e => state.reject(e));
+
+	state.resolve(reward);
+}
+
+async function getCustomRewards(state) {
+	const result = await twitchRequest.getCustomRewards(state.channel_id)
+		.catch(e => state.reject(e));
+	state.resolve(result);
+}
+
+async function createTokensIfNeeded(state, refresh_token) {
+	const store = twitchRequest.getTokenStore(state.channel_id);
+	if (!store) {
 		const authenticated = await twitchRequest.refreshAccessToken({
 			refresh_token: refresh_token,
 			client_id: process.env.CLIENT_ID,
 			client_secret: process.env.CLIENT_SECRET
-		});
-		twitchRequest.storeTokens([{ authenticated, channel_id }]);
+		}).catch(e => state.reject(e));
+		twitchRequest.storeTokens([{ authenticated, channel_id: state.channel_id }]);
 	}
+	state.resolve(store.refresh_token);
 }
