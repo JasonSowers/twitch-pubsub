@@ -7,22 +7,37 @@ const azure = require('azure-storage');
 const tableSvc = azure.createTableService();
 
 const tableNameBroadcasters = 'testBroadcastersTable';
-const partitionBroadcasters = 'testnBroadcasters';
+const partitionBroadcasters = 'testBroadcasters';
 
 const tableNameRedemptions = 'testRedemptionsTable';
 const partitionRedemptions = 'testRedemptions';
 
-function newBroadcasterEntity({ channel_id, refresh_token, reward_id, enable_card }) {
+function entityMapBroadcaster(entity) {
+	return {
+		channel_id: entity.RowKey._,
+		refresh_token: entity.refresh_token._,
+		reward_id: entity.reward_id._
+	};
+}
+
+function entityMapRedemption(entity) {
+	return {
+		redemption_id: entity.RowKey._,
+		channel_id: entity.channel_id._,
+		reward_id: entity.reward_id._,
+	};
+}
+
+function insertBroadcasterTask({ channel_id, refresh_token, reward_id }) {
 	return {
 		PartitionKey: { '_': partitionBroadcasters },
 		RowKey: { '_': channel_id },
 		refresh_token: { '_': refresh_token },
-		reward_id: { '_': reward_id },
-		enable_card: { '_': enable_card }
+		reward_id: { '_': reward_id }
 	};
 }
 
-function newRedemptionEntity({ channel_id, reward_id, redemption_id }) {
+function insertRedemptionTask({ channel_id, reward_id, redemption_id }) {
 	return {
 		PartitionKey: { '_': partitionRedemptions },
 		RowKey: { '_': redemption_id },
@@ -31,47 +46,70 @@ function newRedemptionEntity({ channel_id, reward_id, redemption_id }) {
 	};
 }
 
-async function insertRedemption(item) {
-	const task = newRedemptionEntity(item);
+function deleteBroadcasterTask(channel_id) {
+	return {
+		PartitionKey: { '_': partitionBroadcasters },
+		RowKey: { '_': channel_id }
+	};
+}
 
-	const insertRedemption = await new Promise(resolve => {
-		tableSvc.insertEntity(tableNameRedemptions, task, function (error, result, response) {
+function deleteRedemptionTask(channel_id) {
+	return {
+		PartitionKey: { '_': partitionRedemptions },
+		RowKey: { '_': channel_id }
+	};
+}
+
+async function insertBroadcasterEntity({ channel_id, refresh_token, reward_id }) {
+	return new Promise(resolve => {
+		const task = insertBroadcasterTask({ channel_id, refresh_token, reward_id });
+		tableSvc.insertEntity(tableNameBroadcasters, task, (error, result, response) => {
 			resolve({ error, result, response });
 		});
 	});
-	console.log({ insertRedemption });
-	return insertRedemption;
 }
 
-async function insertBroadcaster({ channel_id, refresh_token, reward_id }) {
-
-	// const channel_id = '987654321';
-	// const refresh_token = 'asdfghjklzxcvbnmqwertyuiop';
-	// const reward_id = 'q1w2e3r4t5y6u7i8o9p';
-
-	const task = newBroadcasterEntity({ channel_id, refresh_token, reward_id, enable_card: true });
-
-	const insertBroadcaster = await new Promise(resolve => {
-		tableSvc.insertEntity(tableNameBroadcasters, task, function (error, result, response) {
+async function insertRedemptionEntity(item) {
+	return new Promise(resolve => {
+		const task = insertRedemptionTask(item);
+		tableSvc.insertEntity(tableNameRedemptions, task, (error, result, response) => {
 			resolve({ error, result, response });
 		});
 	});
-	console.log({ insertBroadcaster });
-	return insertBroadcaster;
 }
 
-async function getBroadcasterEntry(channel_id) {
-	const retrieveResult = await new Promise(resolve => {
-		tableSvc.retrieveEntity(tableNameBroadcasters, partitionBroadcasters, channel_id, function (error, result, response) {
+
+async function retrieveBroadcasterEntity(channel_id) {
+	return new Promise(resolve => {
+		tableSvc.retrieveEntity(tableNameBroadcasters, partitionBroadcasters, channel_id, (error, result, response) => {
 			resolve({ error, result, response });
 		});
 	});
-	console.log({ retrieveResult });
-	return retrieveResult;
 }
 
-function getBroadcasterEntries(entriesCallback) {
+async function deleteBroadcasterEntity(channel_id) {
+	return new Promise(resolve => {
+		const task = deleteBroadcasterTask(channel_id);
+		tableSvc.deleteEntity(tableNameBroadcasters, task, (error, response) => {
+			resolve({ error, response });
+		});
+	});
+}
 
+async function deleteRedemptionEntity(channel_id) {
+	return new Promise(resolve => {
+		const task = deleteRedemptionTask(channel_id);
+		tableSvc.deleteEntity(tableNameRedemptions, task, (error, response) => {
+			resolve({ error, response });
+		});
+	});
+}
+
+function queryBroadcasterEntries(entriesCallback) {
+	/*
+			W I P below
+
+	*/
 	var query = new azure.TableQuery()
 		.where('PartitionKey eq ?', partitionBroadcasters);
 
@@ -109,8 +147,12 @@ async function connect() {
 
 module.exports = {
 	connect,
-	getBroadcasterEntry,
-	getBroadcasterEntries,
-	insertBroadcaster,
-	insertRedemption
+	entityMapBroadcaster,
+	entityMapRedemption,
+	retrieveBroadcasterEntity,
+	queryBroadcasterEntries,
+	insertBroadcasterEntity,
+	insertRedemptionEntity,
+	deleteBroadcasterEntity,
+	deleteRedemptionEntity
 }

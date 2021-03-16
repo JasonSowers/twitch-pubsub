@@ -42,11 +42,36 @@ function tokenOrThrow(broadcaster_id) {
 	return tokenStore[broadcaster_id];
 }
 
+async function refreshOrValidateStore(broadcaster_id) {
+	let store = tokenOrThrow(broadcaster_id);
+
+	if (twitchOAuth.refreshTokenNeeded(store)) {
+		const authenticated = await refreshAccessToken({
+			refresh_token: store.refresh_token,
+			client_id: process.env.API_CLIENT_ID,
+			client_secret: process.env.API_SECRET
+		});
+		storeTokens([{ authenticated, ircTarget: broadcaster_id }]);
+				
+		store = getTokenStore(broadcaster_id);
+	} else {
+		const d = new Date();
+		const time = d.getTime();
+		const secondsInHour = 3600;
+		const next_validation_ms = store.last_validated + (secondsInHour * 1000);
+		if (time > next_validation_ms) {
+			const validate = await twitchOAuth.validateWithCredentials(process.env.API_CLIENT_ID, store.access_token);
+			console.log({ validate });
+		}
+	}
+	return store;
+}
+
 /**
  * throws if the broadcaster_id does not have an access token
  */
 async function createCustomReward(broadcaster_id, data) {
-	const store = tokenOrThrow(broadcaster_id);
+	const store = await refreshOrValidateStore(broadcaster_id);
 
 	const url = `${HELIX_API_BASE_PATH}/channel_points/custom_rewards?broadcaster_id=${broadcaster_id}`;
 	const options = {
@@ -57,7 +82,7 @@ async function createCustomReward(broadcaster_id, data) {
 }
 
 async function deleteCustomReward(broadcaster_id, reward_id) {
-	const store = tokenOrThrow(broadcaster_id);
+	const store = await refreshOrValidateStore(broadcaster_id);
 
 	const searchParamsEntries = [
 		['broadcaster_id', broadcaster_id],
@@ -74,9 +99,9 @@ async function deleteCustomReward(broadcaster_id, reward_id) {
 }
 
 async function getCustomRewards(broadcaster_id) {
-	const store = tokenOrThrow(broadcaster_id);
+	const store = await refreshOrValidateStore(broadcaster_id, only_manageable_rewards = true);
 
-	const url = `${HELIX_API_BASE_PATH}/channel_points/custom_rewards?broadcaster_id=${broadcaster_id}`;
+	const url = `${HELIX_API_BASE_PATH}/channel_points/custom_rewards?broadcaster_id=${broadcaster_id}&only_manageable_rewards=${only_manageable_rewards}`;
 	const options = {
 		method: 'GET'
 	};
@@ -85,7 +110,7 @@ async function getCustomRewards(broadcaster_id) {
 
 
 async function getCustomRewardCard(broadcaster_id, reward_id) {
-	const store = tokenOrThrow(broadcaster_id);
+	const store = await refreshOrValidateStore(broadcaster_id);
 
 	const url = `${HELIX_API_BASE_PATH}/channel_points/custom_rewards?broadcaster_id=${broadcaster_id}&id=${reward_id}`;
 	const options = {
@@ -95,7 +120,7 @@ async function getCustomRewardCard(broadcaster_id, reward_id) {
 }
 
 async function getCustomRewardRedemption(broadcaster_id, redemption_id, reward_id) {
-	const store = tokenOrThrow(broadcaster_id);
+	const store = await refreshOrValidateStore(broadcaster_id);
 
 	const searchParamsEntries = [
 		['broadcaster_id', broadcaster_id],
@@ -114,7 +139,7 @@ async function getCustomRewardRedemption(broadcaster_id, redemption_id, reward_i
 
 // status = FULFILLED or CANCELED
 async function updateRedemptionStatus({ broadcaster_id, redemption_id, reward_id }, status) {
-	const store = tokenOrThrow(broadcaster_id);
+	const store = await refreshOrValidateStore(broadcaster_id);
 
 	const searchParamsEntries = [
 		['broadcaster_id', broadcaster_id],
@@ -133,6 +158,7 @@ async function updateRedemptionStatus({ broadcaster_id, redemption_id, reward_id
 }
 
 async function refreshAccessToken({ refresh_token, client_id, client_secret }) {
+	//throw new Error('bail test');
 	return twitchOAuth.fetchRefreshTokenWithCredentials(client_id, client_secret, refresh_token);
 }
 
@@ -171,7 +197,7 @@ module.exports = {
 	refreshAccessToken,
 	storeTokens,
 	getTokenStore,
-	tokenOrThrow,
+	refreshOrValidateStore,
 	createCustomReward,
 	deleteCustomReward,
 	getCustomRewards,

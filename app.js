@@ -19,80 +19,27 @@ app.use(bodyParser.json());
 const port = process.env.PORT || 3000;
 
 app.get('/login', (req, res) => {
-	const open = require('open');
-	open(twitchRequest.authorizeUrl);
+	//const open = require('open');
+	//open(twitchRequest.authorizeUrl);
 });
 
 app.get('/auth/callback', async (req, res) => {
 	try {
 
-		await storage.connect();
-
-		await twitchRequest.authorize(req.query.code, req.query.state);
+		//await twitchRequest.authorize(req.query.code, req.query.state);
 
 		console.log('authenticated');
-
-		pubsub.connect();
 
 		const channel_id = '75987197';
 		const authenticated = twitchRequest.getAuthenticated();
 		const reward_id = '7e91b9cb-8763-49dd-a3f2-95956159da51';
 		//const { refresh_token, reward_id } = await storage.getToken(channel_id);// 'oyxhyos5jb2p54bma5nm3ogwbbgp4vxv6orw86bapcp6vj9hk1';
 
-
-
-		// const item = await storage.getChannelItem(channel_id);
-		// console.log({ item });
-		// if (item.response.statusCode === 404) {
-		// 	await storage.insertBroadcaster({ channel_id, refresh_token: authenticated.refresh_token, reward_id });
-		// }
-
-		storage.getBroadcasterEntries(async entries => {
-			console.log({ entries });
-			const payload = entries.map(x => ({
-				channel_id: x.RowKey._,
-				refresh_token: x.refresh_token._,
-				reward_id: x.reward_id._,
-				enable_card: x.enable_card._
-			}));
-			await pubsub.initialRewardsSetup({ payload });
-		});
-
-		// const payload = {
-		// 	callowcreation: {
-		// 		refresh_token: authenticated.refresh_token,
-		// 		channel_id: channel_id,
-		// 		enable_card: true,
-		// 		reward_id: reward_id
-		// 	}
-		// };
-
-		//await pubsub.initialRewardsSetup({ payload });
-
-		/*const redemptions = await storage.getRedemptions();
-
-		const redemption = redemptions[0];
-		if (redemption) {
-			const redemption_id = redemption.redemption_id;
-			const reward_id = redemption.reward_id;
-			const result = await twitchRequest.getCustomRewardRedemption(channel_id, redemption_id, reward_id)
-				.catch(e => e);
-
-			const redeemOne = result.data[0];
-			if(redeemOne) {
-				if (redeemOne.status === 'UNFULFILLED') {
-					console.log({ result });
-					const redeemResult = await twitchRequest.updateRedemptionStatus(redemption, 'FULFILLED');
-					console.log({ redeemResult });
-					
-					await storage.removeRedemption(redemption);
-				} else {
-					await storage.removeRedemption(redemption);
-				}
-			}
-		} else {
-			console.log('No Redemption');
-		}*/
+		const item = await storage.getChannelItem(channel_id);
+		console.log({ item });
+		if (item.response.statusCode === 404) {
+			await storage.insertBroadcasterEntity({ channel_id, refresh_token: authenticated.refresh_token, reward_id });
+		}
 
 		res.status(200).send('Twitch API authenticated.  You can close this browser window/tab.');
 	} catch (err) {
@@ -104,7 +51,7 @@ app.get('/auth/callback', async (req, res) => {
 app.post('/action/create', async (req, res) => {
 
 	//
-	//	confirm auth HERE
+	//	confirm auth HERE client id and secret
 	//	or throw error
 	//
 
@@ -122,9 +69,14 @@ app.post('/action/create', async (req, res) => {
 			.then(asPromiseWithState(createTokensIfNeeded, state))
 			.then(asPromiseWithState(getCustomRewards, state))
 			.then(asPromiseWithState(createCustomReward, state))
-			.then(asPromiseWithState(insertBroadcaster, state))
+			.then(asPromiseWithState(insertBroadcasterEntity, state))
 			.then(asPromiseWithState(listenToChannel, state))
-			.catch(e => console.log(e));
+			.catch(e => {
+				console.log(e);
+			})
+			.finally(v => {
+				console.log(v);
+			});
 
 		console.log({ result });
 		res.status(204).end();
@@ -133,27 +85,113 @@ app.post('/action/create', async (req, res) => {
 	}
 });
 
-app.post('/action/delete', async (req, res) => {
+app.delete('/action/delete', async (req, res) => {
 
-	const { channel_id, refresh_token, reward_id } = req.body;
+	//
+	//	confirm auth HERE client id and secret
+	//	or throw error
+	//
 
-	await createTokensIfNeeded(channel_id, refresh_token);
+	try {
 
-	const store = twitchRequest.getTokenStore(channel_id);
-	if (store.authenticated) {
-		await twitchRequest.deleteCustomReward(channel_id, reward_id);
+		const { channel_id, refresh_token, reward_id } = req.body;
 
-		unlisten(`channel-points-channel-v1.${channel_id}`, store.authenticated.access_token);
-		console.log(`stopped listening: ${channel_id}`);
-	} else {
-		console.log({ message: 'Can not delete and unlistenn no access token', channel_id });
+		const state = { channel_id, reward_id };
+
+		const results = await twitchRequest.getCustomRewards(channel_id);
+
+		console.log({ results });
+
+		const result = await new Promise((resolve, reject) => {
+			state.resolve = resolve;
+			state.reject = reject;
+			resolve(refresh_token);
+		})
+			.then(asPromiseWithState(createTokensIfNeeded, state))
+			.then(asPromiseWithState(deleteCustomReward, state))
+			.then(asPromiseWithState(deleteBroadcasterEntity, state))
+			.then(asPromiseWithState(unlistenToChannel, state))
+			.catch(e => {
+				console.log(e);
+			})
+			.finally(v => {
+				console.log(v);
+			});
+
+		console.log({ result });
+		res.status(204).end();
+	} catch (error) {
+		res.status(500).send(error.message);
 	}
 });
 
-app.listen(port, () => {
+app.listen(port, async () => {
 	console.log(`App listening on port ${port}`);
-	const open = require('open');
-	open(twitchRequest.authorizeUrl);
+	// const open = require('open');
+	// open(twitchRequest.authorizeUrl);
+
+	await storage.connect();
+
+	pubsub.connect();
+
+	storage.queryBroadcasterEntries(async entries => {
+		console.log({ entries });
+		const items = entries.map(storage.entityMapBroadcaster);
+
+		console.log({ items });
+		const promises = [];
+
+		for (const channel in items) {
+
+			const { refresh_token, channel_id, reward_id } = items[channel];
+
+			const state = { channel_id, reward_id };
+
+			promises.push(new Promise((resolve, reject) => {
+				state.resolve = resolve;
+				state.reject = reject;
+				resolve(refresh_token);
+			})
+				.then(asPromiseWithState(createTokensIfNeeded, state))
+				.then(asPromiseWithState(getCustomRewardCard, state))
+				.then(asPromiseWithState(listenToChannel, state))
+				.catch(e => {
+					console.log(e);
+				}))
+				.finally(v => {
+					console.log(v);
+				});
+		}
+
+		const results = await Promise.all(promises);
+		console.log({ results });
+	});
+
+	/*const redemptions = await storage.getRedemptions();
+
+	const redemption = redemptions[0];
+	if (redemption) {
+		const redemption_id = redemption.redemption_id;
+		const reward_id = redemption.reward_id;
+		const result = await twitchRequest.getCustomRewardRedemption(channel_id, redemption_id, reward_id)
+			.catch(e => e);
+
+		const redeemOne = result.data[0];
+		if(redeemOne) {
+			if (redeemOne.status === 'UNFULFILLED') {
+				console.log({ result });
+				const redeemResult = await twitchRequest.updateRedemptionStatus(redemption, 'FULFILLED');
+				console.log({ redeemResult });
+				
+				await storage.removeRedemption(redemption);
+			} else {
+				await storage.removeRedemption(redemption);
+			}
+		}
+	} else {
+		console.log('No Redemption');
+	}*/
+
 });
 
 function asPromiseWithState(f, state) {
@@ -167,20 +205,30 @@ function asPromiseWithState(f, state) {
 }
 
 async function listenToChannel(state) {
-	pubsub.listenToChannel(state.channel_id);
+	return pubsub.listenToChannel(state.channel_id);
 }
 
-async function insertBroadcaster(state, reward) {
+async function unlistenToChannel(state) {
+	return pubsub.unlistenToChannel(state.channel_id);
+}
+
+async function insertBroadcasterEntity(state, reward) {
 	const store = twitchRequest.getTokenStore(state.channel_id);
-	storage.insertBroadcaster({ channel_id: state.channel_id, refresh_token: store.refresh_token, reward_id: reward.id })
-		.catch(e => state.reject(e));
-	state.resolve();
+	return storage.insertBroadcasterEntity({ channel_id: state.channel_id, refresh_token: store.refresh_token, reward_id: reward.id })
+		.then(state.resolve)
+		.catch(state.reject);
+}
+
+async function deleteBroadcasterEntity(state) {
+	return storage.deleteBroadcasterEntity(state.channel_id)
+		.then(state.resolve)
+		.catch(state.reject);
 }
 
 async function createCustomReward(state, result) {
 	let reward = result.data ? result.data.find(x => x.title === state.title) : null;
 
-	if (reward) state.resolve(reward);
+	if (reward) state.reject(`There is a reward with title ${state.title}`);
 
 	const data = {
 		title: state.title,
@@ -189,17 +237,27 @@ async function createCustomReward(state, result) {
 		should_redemptions_skip_request_queue: false
 	};
 
-	reward = await twitchRequest.createCustomReward(state.channel_id, data)
-		.then(({ data }) => data[0])
-		.catch(e => state.reject(e));
+	return twitchRequest.createCustomReward(state.channel_id, data)
+		.then(({ data }) => state.resolve(data[0]))
+		.catch(state.reject);
+}
 
-	state.resolve(reward);
+async function deleteCustomReward(state) {
+	return twitchRequest.deleteCustomReward(state.channel_id, state.reward_id)
+		.then(state.resolve)
+		.catch(state.reject);
 }
 
 async function getCustomRewards(state) {
-	const result = await twitchRequest.getCustomRewards(state.channel_id)
-		.catch(e => state.reject(e));
-	state.resolve(result);
+	return twitchRequest.getCustomRewards(state.channel_id)
+		.then(state.resolve)
+		.catch(state.reject);
+}
+
+async function getCustomRewardCard(state) {
+	return twitchRequest.getCustomRewardCard(state.channel_id, state.reward_id)
+		.then(state.resolve)
+		.catch(state.reject);
 }
 
 async function createTokensIfNeeded(state, refresh_token) {
@@ -209,8 +267,10 @@ async function createTokensIfNeeded(state, refresh_token) {
 			refresh_token: refresh_token,
 			client_id: process.env.CLIENT_ID,
 			client_secret: process.env.CLIENT_SECRET
-		}).catch(e => state.reject(e));
+		}).catch(e => {
+			state.reject(e);
+		});
 		twitchRequest.storeTokens([{ authenticated, channel_id: state.channel_id }]);
 	}
-	state.resolve(store.refresh_token);
+	state.resolve();
 }

@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/JasonSowers/twitch-api#readme",
   "dependencies": {
-    "@callowcreation/basic-twitch-oauth": "^1.0.10",
+    "@callowcreation/basic-twitch-oauth": "^1.0.12",
     "azure-storage": "^2.10.3",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",

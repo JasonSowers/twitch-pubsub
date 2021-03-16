@@ -110,21 +110,29 @@ function connect() {
 		switch (value.type) {
 			case 'MESSAGE':
 
-				const message = JSON.parse(value.data.message);
-				const redemption = message.data.redemption;
-				const redemption_id = redemption.id;
-				const channel_id = redemption.channel_id;
-				const reward_id = redemption.reward.id;
+				try {
 
-				const result = await twitchRequest.getCustomRewardCard(channel_id, reward_id);
+					const message = JSON.parse(value.data.message);
+					const redemption = message.data.redemption;
+					const redemption_id = redemption.id;
+					const channel_id = redemption.channel_id;
+					const reward_id = redemption.reward.id;
 
-				console.log({ result });
+					if (recentIds.includes(redemption_id)) throw new Error(`Redemption rejected duplicate id: ${redemption_id}`);
+					recentIds.push(redemption_id);
 
-				if (recentIds.includes(redemption_id)) break;
-				recentIds.push(redemption_id);
+					const entityBroadcaster = await storage.retrieveBroadcasterEntity(channel_id);
+					if(entityBroadcaster.response.statusCode !== 200) throw new Error(`Record not found for channel ${channel_id}`);
+					
+					const mappedBroadcaster = storage.entityMapBroadcaster(entityBroadcaster.result);
+					if (mappedBroadcaster.reward_id !== reward_id) throw new Error(`Reward id does not match: current: ${reward_id} stored: ${mappedBroadcaster.reward_id}`);
 
-				storage.insertRedemption({ channel_id, redemption_id, reward_id });
-				console.log(message.data);
+					const storageResult = await storage.insertRedemptionEntity({ channel_id, redemption_id, reward_id });
+					console.log({ storageResult });
+				} catch (error) {
+					console.log(error);
+				}
+
 				break;
 			case 'PONG':
 				console.log({ success: true, resultText: `${pingpongLog} RECV #${heartbeatCounter}: ${JSON.stringify(value)}` });
@@ -175,142 +183,21 @@ function clearPongWaitTimeout() {
 	}
 }
 
-async function updateRewardsSetup({ payload }) {
-
-	const { refresh_token, channel_id, reward_id, enable_card } = payload;
-
-	if (!refresh_token) return;
-
-	const tokenStore = twitchRequest.getTokenStore(channel_id);
-	const items = [];
-	if (!tokenStore) {
-		const authenticated = await twitchRequest.refreshAccessToken({
-			refresh_token: refresh_token,
-			client_id: process.env.CLIENT_ID,
-			client_secret: process.env.CLIENT_SECRET
-		});
-		items.push({ authenticated, channel_id, reward_id, enable_card });
-		twitchRequest.storeTokens(items);
-	} else {
-		items.push({ authenticated: tokenStore, channel_id, reward_id, enable_card });
-	}
-
-	await handleChannelPointsCard(items);
-}
-
-async function initialRewardsSetup({ payload }) {
-	try {
-
-		console.log({ payload });
-		const promises = [];
-
-		for (const channel in payload) {
-
-			const { refresh_token, channel_id, reward_id, enable_card } = payload[channel];
-
-			promises.push(new Promise(async resolve => {
-				if (refresh_token) {
-					const authenticated = await twitchRequest.refreshAccessToken({
-						refresh_token: refresh_token,
-						client_id: process.env.CLIENT_ID,
-						client_secret: process.env.CLIENT_SECRET
-					});
-
-					twitchRequest.storeTokens([{ authenticated, channel_id }]);
-
-					const result = await twitchRequest.getCustomRewardCard(channel_id, reward_id)
-						.catch(e => console.log(e));
-
-					if (result && result.data) {
-						listenToChannel(channel_id);
-					}
-
-					resolve({ authenticated, channel_id, reward_id, enable_card });
-				} else {
-					resolve({ authenticated: null, channel_id, reward_id, enable_card });
-				}
-			}));
-		}
-	} catch (error) {
-		console.log(error);
-	}
-}
-
-async function handleChannelPointsCard(items) {
-	const cardTitle = 'Alexa Skill';
-
-	for (let i = 0; i < items.length; i++) {
-		try {
-			const { authenticated, channel_id, enable_card, reward_id } = items[i];
-
-			console.log({ channel_id, enable_card, reward_id });
-
-			if (enable_card === true) {
-				await twitchRequest.getCustomRewards(channel_id)
-					.then(result => createCustomReward(result, cardTitle, channel_id))
-					.then(listenToChannel)
-					.catch(e => console.log(e));
-			} else {
-
-				if (authenticated) {
-					if (enable_card === false) {
-						await twitchRequest.deleteCustomReward(channel_id, reward_id);
-					}
-					unlisten(`channel-points-channel-v1.${channel_id}`, authenticated.access_token);
-					console.log(`stopped listening: ${channel_id}`);
-				} else {
-					console.log({ message: 'Can not unlistenn no access token', channel_id, enable_card, reward_id });
-				}
-			}
-		} catch (error) {
-			console.log(items[i]);
-			console.error(error);
-		}
-	}
-}
-
-async function createCustomReward(result, cardTitle, channel_id) {
-
-	const reward = result.data ? result.data.find(x => x.title === cardTitle) : null;
-	let reward_id = null;
-
-	if (!reward) {
-		const data = {
-			title: cardTitle,
-			cost: 420,
-			prompt: `Send this request to the broadcaster`,
-			should_redemptions_skip_request_queue: false
-		};
-
-		const results = await twitchRequest.createCustomReward(channel_id, data).catch(e => {
-			console.log(e);
-		});
-
-		if (results) {
-			if (results.data) {
-				reward_id = results.data[0].id;
-			} else if (results.error) {
-				console.error(results.error);
-			}
-		}
-	} else {
-		reward_id = reward.id;
-	}
-	return { channel_id };
-}
-
-function listenToChannel(channel_id) {
-
-	const store = twitchRequest.tokenOrThrow(channel_id);
+async function listenToChannel(channel_id) {
+	const store = await twitchRequest.refreshOrValidateStore(channel_id);
 	listen(`channel-points-channel-v1.${channel_id}`, store.access_token);
+	return `Listening to channel-points-channel-v1.${channel_id}`;
+}
 
-	console.log(`listening: ${channel_id}`);
+async function unlistenToChannel(channel_id) {
+	const store = await twitchRequest.refreshOrValidateStore(channel_id);
+	unlisten(`channel-points-channel-v1.${channel_id}`, store.access_token);
+	return `Stopped tistening to channel-points-channel-v1.${channel_id}`;
 }
 
 module.exports = {
 	connect,
-	initialRewardsSetup,
-	updateRewardsSetup,
-	listenToChannel
+	listenToChannel,
+	unlistenToChannel
 };
 
