@@ -109,6 +109,8 @@ app.delete('/action/delete', async (req, res) => {
 		})
 			.then(asPromiseWithState(createTokensIfNeeded, state))
 			.then(asPromiseWithState(deleteCustomReward, state))
+			.then(asPromiseWithState(queryRedemptionEntites, state))
+			.then(asPromiseWithState(deleteRedemptionEntites, state))
 			.then(asPromiseWithState(deleteBroadcasterEntity, state))
 			.then(asPromiseWithState(unlistenToChannel, state))
 			.catch(e => {
@@ -134,37 +136,44 @@ app.listen(port, async () => {
 
 	pubsub.connect();
 
-	storage.queryBroadcasterEntries(async entries => {
-		console.log({ entries });
-		const items = entries.map(storage.entityMapBroadcaster);
+	await new Promise(resolve => {
+		storage.queryBroadcasterEntries(async ({ entries, continuationToken }) => {
+			console.log({ entries });
+			if(entries.length === 0) return resolve();
+			const items = entries.map(storage.entityMapBroadcaster);
 
-		console.log({ items });
-		const promises = [];
+			console.log({ items });
+			const promises = [];
 
-		for (const channel in items) {
+			for (const channel in items) {
 
-			const { refresh_token, channel_id, reward_id } = items[channel];
+				const { refresh_token, channel_id, reward_id } = items[channel];
 
-			const state = { channel_id, reward_id };
+				const state = { channel_id, reward_id };
 
-			promises.push(new Promise((resolve, reject) => {
-				state.resolve = resolve;
-				state.reject = reject;
-				resolve(refresh_token);
-			})
-				.then(asPromiseWithState(createTokensIfNeeded, state))
-				.then(asPromiseWithState(getCustomRewardCard, state))
-				.then(asPromiseWithState(listenToChannel, state))
-				.catch(e => {
-					console.log(e);
-				}))
-				.finally(v => {
-					console.log(v);
-				});
-		}
+				promises.push(new Promise((resolve, reject) => {
+					state.resolve = resolve;
+					state.reject = reject;
+					resolve(refresh_token);
+				})
+					.then(asPromiseWithState(createTokensIfNeeded, state))
+					.then(asPromiseWithState(getCustomRewardCard, state))
+					.then(asPromiseWithState(listenToChannel, state))
+					.catch(e => {
+						console.log(e);
+					}))
+					.finally(v => {
+						console.log(v);
+					});
+			}
 
-		const results = await Promise.all(promises);
-		console.log({ results });
+			const results = await Promise.all(promises);
+			console.log({ results });
+
+			if (!continuationToken) {
+				resolve();
+			}
+		});
 	});
 
 	/*const redemptions = await storage.getRedemptions();
@@ -223,6 +232,31 @@ async function deleteBroadcasterEntity(state) {
 	return storage.deleteBroadcasterEntity(state.channel_id)
 		.then(state.resolve)
 		.catch(state.reject);
+}
+
+async function deleteRedemptionEntites(state, redemption_ids) {
+	return storage.deleteRedemptionEntites(redemption_ids)
+		.then(state.resolve)
+		.catch(state.reject);
+}
+
+async function queryRedemptionEntites(state) {
+	try {
+		const redemption_ids = [];
+		storage.queryRedemptionEntites(({ entries, continuationToken }) => {
+			console.log({ entries });
+
+			const items = entries.map(x => x.RowKey._);
+			console.log({ items });
+
+			redemption_ids.push(...items);
+			if (!continuationToken) {
+				state.resolve(redemption_ids);
+			}
+		});
+	} catch (error) {
+		state.reject(error);
+	}
 }
 
 async function createCustomReward(state, result) {

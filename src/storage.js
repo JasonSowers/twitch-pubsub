@@ -53,10 +53,10 @@ function deleteBroadcasterTask(channel_id) {
 	};
 }
 
-function deleteRedemptionTask(channel_id) {
+function deleteRedemptionTask(redemption_id) {
 	return {
 		PartitionKey: { '_': partitionRedemptions },
-		RowKey: { '_': channel_id }
+		RowKey: { '_': redemption_id }
 	};
 }
 
@@ -105,10 +105,24 @@ async function deleteRedemptionEntity(channel_id) {
 	});
 }
 
+async function deleteRedemptionEntites(redemption_ids) {
+	return new Promise(resolve => {
+		const batch = new azure.TableBatch();
+
+		for (let i = 0; i < redemption_ids.length; i++) {
+			const redemption_id = redemption_ids[i];
+			const task = deleteRedemptionTask(redemption_id);
+			batch.insertEntity(task, { echoContent: true });		
+		}
+		tableSvc.executeBatch(tableNameRedemptions, batch, (error, result, response) => {
+			resolve({ error, result, response });
+		});
+	});
+}
+
 function queryBroadcasterEntries(entriesCallback) {
 	/*
 			W I P below
-
 	*/
 	var query = new azure.TableQuery()
 		.where('PartitionKey eq ?', partitionBroadcasters);
@@ -122,6 +136,28 @@ function queryBroadcasterEntries(entriesCallback) {
 
 			// iterate through results.entries with results
 			entriesCallback(results.entries);
+			if (results.continuationToken) {
+				nextContinuationToken = results.continuationToken;
+			}
+
+		});
+}
+function queryRedemptionEntites(entriesCallback) {
+	/*
+			W I P below
+	*/
+	var query = new azure.TableQuery()
+		.where('PartitionKey eq ?', partitionRedemptions);
+
+	var nextContinuationToken = null;
+	tableSvc.queryEntities(tableNameRedemptions,
+		query,
+		nextContinuationToken,
+		function (error, results) {
+			if (error) throw error;
+
+			// iterate through results.entries with results
+			entriesCallback({ entries: results.entries, continuationToken: results.continuationToken });
 			if (results.continuationToken) {
 				nextContinuationToken = results.continuationToken;
 			}
@@ -151,8 +187,10 @@ module.exports = {
 	entityMapRedemption,
 	retrieveBroadcasterEntity,
 	queryBroadcasterEntries,
+	queryRedemptionEntites,
 	insertBroadcasterEntity,
 	insertRedemptionEntity,
 	deleteBroadcasterEntity,
-	deleteRedemptionEntity
+	deleteRedemptionEntity,
+	deleteRedemptionEntites
 }
