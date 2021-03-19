@@ -11,6 +11,7 @@ const bodyParser = require('body-parser');
 const storage = require('./src/storage');
 const twitchRequest = require('./src/twitch-request');
 const pubsub = require('./src/pubsub');
+const RewardExistsError = require('./src/errors/reward-exists');
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -262,7 +263,7 @@ async function queryRedemptionEntites(state) {
 async function createCustomReward(state, result) {
 	let reward = result.data ? result.data.find(x => x.title === state.title) : null;
 
-	if (reward) state.reject(`There is a reward with title ${state.title}`);
+	if (reward) state.reject(new RewardExistsError(reward, `There is a reward with title ${state.title}`));
 
 	const data = {
 		title: state.title,
