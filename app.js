@@ -72,12 +72,7 @@ app.post('/action/create', async (req, res) => {
 			.then(asPromiseWithState(createCustomReward, state))
 			.then(asPromiseWithState(insertBroadcasterEntity, state))
 			.then(asPromiseWithState(listenToChannel, state))
-			.catch(e => {
-				console.log(e);
-			})
-			.finally(v => {
-				console.log(v);
-			});
+			.catch(e => e);
 
 		console.log({ result });
 		res.status(204).end();
@@ -114,12 +109,7 @@ app.delete('/action/delete', async (req, res) => {
 			.then(asPromiseWithState(deleteRedemptionEntites, state))
 			.then(asPromiseWithState(deleteBroadcasterEntity, state))
 			.then(asPromiseWithState(unlistenToChannel, state))
-			.catch(e => {
-				console.log(e);
-			})
-			.finally(v => {
-				console.log(v);
-			});
+			.catch(e => e);
 
 		console.log({ result });
 		res.status(204).end();

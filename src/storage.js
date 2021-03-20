@@ -6,11 +6,11 @@ const azure = require('azure-storage');
 
 const tableSvc = azure.createTableService();
 
-const tableNameBroadcasters = 'testBroadcastersTable';
-const partitionBroadcasters = 'testBroadcasters';
+const tableNameBroadcasters = 'Rewards';
+const partitionBroadcasters = 'Card';
 
-const tableNameRedemptions = 'testRedemptionsTable';
-const partitionRedemptions = 'testRedemptions';
+const tableNameRedemptions = 'Redemptions';
+const partitionRedemptions = 'Pending';
 
 function entityMapBroadcaster(entity) {
 	return {
