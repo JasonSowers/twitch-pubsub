@@ -12,6 +12,7 @@ const storage = require('./src/storage');
 const twitchRequest = require('./src/twitch-request');
 const pubsub = require('./src/pubsub');
 const RewardExistsError = require('./src/errors/reward-exists');
+const UnauthorizedError = require('./src/errors/unauthorized');
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -51,74 +52,27 @@ app.get('/auth/callback', async (req, res) => {
 	}
 });
 
-app.post('/action/create', async (req, res) => {
-
-	if (!verifyAuthorization(req.headers)) {
-		res.status(401).json({ reason: 'Unauthorized' });
-		return;
-	}
-
-	try {
-
-		const { channel_id, refresh_token, title, prompt, cost } = req.body;
-
-		const state = { channel_id, title, prompt, cost };
-
-		const result = await new Promise((resolve, reject) => {
-			state.resolve = resolve;
-			state.reject = reject;
-			resolve(refresh_token);
-		})
-			.then(asPromiseWithState(createTokensIfNeeded, state))
-			.then(asPromiseWithState(getCustomRewards, state))
-			.then(asPromiseWithState(createCustomReward, state))
-			.then(asPromiseWithState(insertRewardEntity, state))
-			.then(asPromiseWithState(listenToChannel, state))
-			.catch(e => e);
-
-		console.log({ result });
-		res.status(204).end();
-	} catch (error) {
-		res.status(500).send(error.message);
-	}
-});
-
-app.delete('/action/delete', async (req, res) => {
-
-	if (!verifyAuthorization(req.headers)) {
-		res.status(401).json({ reason: 'Unauthorized' });
-		return;
-	}
-
-	try {
-
-		const { channel_id, refresh_token, reward_id } = req.body;
-
-		const state = { channel_id, reward_id };
-
-		const results = await twitchRequest.getCustomRewards(channel_id);
-
-		console.log({ results });
-
-		const result = await new Promise((resolve, reject) => {
-			state.resolve = resolve;
-			state.reject = reject;
-			resolve(refresh_token);
-		})
-			.then(asPromiseWithState(createTokensIfNeeded, state))
-			.then(asPromiseWithState(deleteCustomReward, state))
-			.then(asPromiseWithState(queryRedemptionEntites, state))
-			.then(asPromiseWithState(deleteRedemptionEntites, state))
-			.then(asPromiseWithState(deleteRewardEntity, state))
-			.then(asPromiseWithState(unlistenToChannel, state))
-			.catch(e => e);
-
-		console.log({ result });
-		res.status(204).end();
-	} catch (error) {
-		res.status(500).send(error.message);
-	}
-});
+app.route('/reward')
+	.put(async (req, res) => {
+		try {
+			verifyAuthorization(req.headers);
+			const result = await handleCreateRequest(req.body);
+			console.log({ result });
+			res.status(204).end();
+		} catch (error) {
+			res.status(errorStatus(error)).json({ reason: error.message });
+		}
+	})
+	.delete(async (req, res) => {
+		try {
+			verifyAuthorization(req.headers);
+			const result = await handleDeleteRequest(req.body);
+			console.log({ result });
+			res.status(204).end();
+		} catch (error) {
+			res.status(errorStatus(error)).json({ reason: error.message });
+		}
+	});
 
 app.listen(port, async () => {
 	console.log(`App listening on port ${port}`);
@@ -192,6 +146,43 @@ app.listen(port, async () => {
 
 });
 
+async function handleDeleteRequest({ channel_id, refresh_token, reward_id }) {
+
+	const state = { channel_id, reward_id };
+
+	const results = await twitchRequest.getCustomRewards(channel_id);
+
+	console.log({ results });
+
+	return new Promise((resolve, reject) => {
+		state.resolve = resolve;
+		state.reject = reject;
+		resolve(refresh_token);
+	})
+		.then(asPromiseWithState(createTokensIfNeeded, state))
+		.then(asPromiseWithState(deleteCustomReward, state))
+		.then(asPromiseWithState(queryRedemptionEntites, state))
+		.then(asPromiseWithState(deleteRedemptionEntites, state))
+		.then(asPromiseWithState(deleteRewardEntity, state))
+		.then(asPromiseWithState(unlistenToChannel, state));
+}
+
+async function handleCreateRequest({ channel_id, refresh_token, title, prompt, cost }) {
+
+	const state = { channel_id, title, prompt, cost };
+
+	return new Promise((resolve, reject) => {
+		state.resolve = resolve;
+		state.reject = reject;
+		resolve(refresh_token);
+	})
+		.then(asPromiseWithState(createTokensIfNeeded, state))
+		.then(asPromiseWithState(getCustomRewards, state))
+		.then(asPromiseWithState(createCustomReward, state))
+		.then(asPromiseWithState(insertRewardEntity, state))
+		.then(asPromiseWithState(listenToChannel, state));
+}
+
 function asPromiseWithState(f, state) {
 	return (input_arg) => {
 		return new Promise((resolve, reject) => {
@@ -202,8 +193,24 @@ function asPromiseWithState(f, state) {
 	};
 }
 
+/**
+ * 
+ * @param {*} headers response headers
+ * 
+ * @throws UnauthorizedError
+ */
 function verifyAuthorization(headers) {
-	return headers['authorization'] === 'Basic ' + (Buffer.from(process.env.CLIENT_ID + ':' + process.env.CLIENT_SECRET).toString('base64'));
+	if (headers['authorization'] !== 'Basic ' + (Buffer.from(process.env.CLIENT_ID + ':' + process.env.CLIENT_SECRET).toString('base64'))) {
+		throw new UnauthorizedError(401, 'Unauthorized');
+	}
+}
+
+function errorStatus(error) {
+	switch (error.name) {
+		case 'RewardExistsError': return 500;
+		case 'UnauthorizedError': return 401;
+		default: return 500;
+	}
 }
 
 async function listenToChannel(state) {
@@ -256,6 +263,13 @@ async function queryRedemptionEntites(state) {
 	}
 }
 
+/**
+ * 
+ * @param {*} state 
+ * @param {*} result 
+ * 
+ * @throws RewardExistsError
+ */
 async function createCustomReward(state, result) {
 	let reward = result.data ? result.data.find(x => x.title === state.title) : null;
 
