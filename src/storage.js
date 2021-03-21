@@ -112,7 +112,7 @@ async function deleteRedemptionEntites(redemption_ids) {
 		for (let i = 0; i < redemption_ids.length; i++) {
 			const redemption_id = redemption_ids[i];
 			const task = deleteRedemptionTask(redemption_id);
-			batch.insertEntity(task, { echoContent: true });
+			batch.deleteEntity(task);
 		}
 		tableSvc.executeBatch(tableNameRedemptions, batch, (error, result, response) => {
 			resolve({ error, result, response });
