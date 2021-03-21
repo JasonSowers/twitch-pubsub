@@ -4,9 +4,13 @@
 
 const WebSocket = require('ws');
 
+const fetch = require('node-fetch');
+
 const twitchRequest = require('./twitch-request');
 
 const storage = require('./storage');
+
+const url = 'https://twitch-alexa-skill.azurewebsites.net/api/ProactiveMessage';
 
 const recentIds = [];
 let pingpongLog = '';
@@ -117,15 +121,26 @@ function connect() {
 					const redemption_id = redemption.id;
 					const channel_id = redemption.channel_id;
 					const reward_id = redemption.reward.id;
+					const username = redemption.user.login;
 
 					if (recentIds.includes(redemption_id)) throw new Error(`Redemption rejected duplicate id: ${redemption_id}`);
 					recentIds.push(redemption_id);
 
-					const entityBroadcaster = await storage.retrieveBroadcasterEntity(channel_id);
-					if(entityBroadcaster.response.statusCode !== 200) throw new Error(`Record not found for channel ${channel_id}`);
-					
-					const mappedBroadcaster = storage.entityMapBroadcaster(entityBroadcaster.result);
-					if (mappedBroadcaster.reward_id !== reward_id) throw new Error(`Reward id does not match: current: ${reward_id} stored: ${mappedBroadcaster.reward_id}`);
+					const entityReward = await storage.retrieveRewardEntity(channel_id);
+					if (entityReward.response.statusCode !== 200) throw new Error(`Record not found for channel ${channel_id}`);
+
+					const mappedReward = storage.entityMapReward(entityReward.result);
+					if (mappedReward.reward_id !== reward_id) throw new Error(`Reward id does not match: current: ${reward_id} stored: ${mappedReward.reward_id}`);
+
+					const sendData = { channel_id, username };
+
+					const options = {
+						method: 'POST',
+						body: JSON.stringify(sendData)
+					};
+					const result = await fetch(url, options);
+
+					console.log({ result });
 
 					const storageResult = await storage.insertRedemptionEntity({ channel_id, redemption_id, reward_id });
 					console.log({ storageResult });

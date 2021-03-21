@@ -1,9 +1,9 @@
 /**
  * 
- * @param {*} reward 
- * @param {*} message 
- * @param {*} fileName 
- * @param {*} lineNumber 
+ * @param {*} reward the existing reward object
+ * @param {*} message the message about the the error
+ * @param {*} fileName (stracktrace stuff)
+ * @param {*} lineNumber (stracktrace stuff)
  */
 function RewardExistsError(reward, message, fileName, lineNumber) {
 	var instance = new Error(message, fileName, lineNumber);

@@ -6,13 +6,13 @@ const azure = require('azure-storage');
 
 const tableSvc = azure.createTableService();
 
-const tableNameBroadcasters = 'Rewards';
-const partitionBroadcasters = 'Card';
+const tableNameRewards = 'Rewards';
+const partitionRewards = 'Card';
 
 const tableNameRedemptions = 'Redemptions';
 const partitionRedemptions = 'Pending';
 
-function entityMapBroadcaster(entity) {
+function entityMapReward(entity) {
 	return {
 		channel_id: entity.RowKey._,
 		refresh_token: entity.refresh_token._,
@@ -28,9 +28,9 @@ function entityMapRedemption(entity) {
 	};
 }
 
-function insertBroadcasterTask({ channel_id, refresh_token, reward_id }) {
+function insertRewardTask({ channel_id, refresh_token, reward_id }) {
 	return {
-		PartitionKey: { '_': partitionBroadcasters },
+		PartitionKey: { '_': partitionRewards },
 		RowKey: { '_': channel_id },
 		refresh_token: { '_': refresh_token },
 		reward_id: { '_': reward_id }
@@ -46,9 +46,9 @@ function insertRedemptionTask({ channel_id, reward_id, redemption_id }) {
 	};
 }
 
-function deleteBroadcasterTask(channel_id) {
+function deleteRewardTask(channel_id) {
 	return {
-		PartitionKey: { '_': partitionBroadcasters },
+		PartitionKey: { '_': partitionRewards },
 		RowKey: { '_': channel_id }
 	};
 }
@@ -60,10 +60,10 @@ function deleteRedemptionTask(redemption_id) {
 	};
 }
 
-async function insertBroadcasterEntity({ channel_id, refresh_token, reward_id }) {
+async function insertRewardEntity({ channel_id, refresh_token, reward_id }) {
 	return new Promise(resolve => {
-		const task = insertBroadcasterTask({ channel_id, refresh_token, reward_id });
-		tableSvc.insertEntity(tableNameBroadcasters, task, (error, result, response) => {
+		const task = insertRewardTask({ channel_id, refresh_token, reward_id });
+		tableSvc.insertEntity(tableNameRewards, task, (error, result, response) => {
 			resolve({ error, result, response });
 		});
 	});
@@ -79,18 +79,18 @@ async function insertRedemptionEntity(item) {
 }
 
 
-async function retrieveBroadcasterEntity(channel_id) {
+async function retrieveRewardEntity(channel_id) {
 	return new Promise(resolve => {
-		tableSvc.retrieveEntity(tableNameBroadcasters, partitionBroadcasters, channel_id, (error, result, response) => {
+		tableSvc.retrieveEntity(tableNameRewards, partitionRewards, channel_id, (error, result, response) => {
 			resolve({ error, result, response });
 		});
 	});
 }
 
-async function deleteBroadcasterEntity(channel_id) {
+async function deleteRewardEntity(channel_id) {
 	return new Promise(resolve => {
-		const task = deleteBroadcasterTask(channel_id);
-		tableSvc.deleteEntity(tableNameBroadcasters, task, (error, response) => {
+		const task = deleteRewardTask(channel_id);
+		tableSvc.deleteEntity(tableNameRewards, task, (error, response) => {
 			resolve({ error, response });
 		});
 	});
@@ -112,7 +112,7 @@ async function deleteRedemptionEntites(redemption_ids) {
 		for (let i = 0; i < redemption_ids.length; i++) {
 			const redemption_id = redemption_ids[i];
 			const task = deleteRedemptionTask(redemption_id);
-			batch.insertEntity(task, { echoContent: true });		
+			batch.insertEntity(task, { echoContent: true });
 		}
 		tableSvc.executeBatch(tableNameRedemptions, batch, (error, result, response) => {
 			resolve({ error, result, response });
@@ -120,22 +120,22 @@ async function deleteRedemptionEntites(redemption_ids) {
 	});
 }
 
-function queryBroadcasterEntries(entriesCallback) {
+function queryRewardEntries(entriesCallback) {
 	/*
 			W I P below
 	*/
 	var query = new azure.TableQuery()
-		.where('PartitionKey eq ?', partitionBroadcasters);
+		.where('PartitionKey eq ?', partitionRewards);
 
 	var nextContinuationToken = null;
-	tableSvc.queryEntities(tableNameBroadcasters,
+	tableSvc.queryEntities(tableNameRewards,
 		query,
 		nextContinuationToken,
 		function (error, results) {
 			if (error) throw error;
 
 			// iterate through results.entries with results
-			entriesCallback(results.entries);
+			entriesCallback({ entries: results.entries, continuationToken: results.continuationToken });
 			if (results.continuationToken) {
 				nextContinuationToken = results.continuationToken;
 			}
@@ -167,8 +167,8 @@ function queryRedemptionEntites(entriesCallback) {
 
 async function connect() {
 
-	const createBroadcastersTableResult = await new Promise(resolve => {
-		tableSvc.createTableIfNotExists(tableNameBroadcasters, function (error, result, response) {
+	const createRewardsTableResult = await new Promise(resolve => {
+		tableSvc.createTableIfNotExists(tableNameRewards, function (error, result, response) {
 			resolve({ error, result, response });
 		});
 	});
@@ -178,19 +178,19 @@ async function connect() {
 			resolve({ error, result, response });
 		});
 	});
-	console.log({ createBroadcastersTableResult, createRedemptionsTableResult });
+	console.log({ createRewardsTableResult, createRedemptionsTableResult });
 }
 
 module.exports = {
 	connect,
-	entityMapBroadcaster,
+	entityMapReward,
 	entityMapRedemption,
-	retrieveBroadcasterEntity,
-	queryBroadcasterEntries,
+	retrieveRewardEntity,
+	queryRewardEntries,
 	queryRedemptionEntites,
-	insertBroadcasterEntity,
+	insertRewardEntity,
 	insertRedemptionEntity,
-	deleteBroadcasterEntity,
+	deleteRewardEntity,
 	deleteRedemptionEntity,
 	deleteRedemptionEntites
 }
