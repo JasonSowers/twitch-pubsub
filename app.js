@@ -53,26 +53,8 @@ app.get('/auth/callback', async (req, res) => {
 });
 
 app.route('/reward')
-	.put(async (req, res) => {
-		try {
-			verifyAuthorization(req.headers);
-			const result = await handleCreateRequest(req.body);
-			console.log({ result });
-			res.status(204).end();
-		} catch (error) {
-			res.status(errorStatus(error)).json({ reason: error.message });
-		}
-	})
-	.delete(async (req, res) => {
-		try {
-			verifyAuthorization(req.headers);
-			const result = await handleDeleteRequest(req.body);
-			console.log({ result });
-			res.status(204).end();
-		} catch (error) {
-			res.status(errorStatus(error)).json({ reason: error.message });
-		}
-	});
+	.put(handleCreate)
+	.delete(handleDelete);
 
 app.listen(port, async () => {
 	console.log(`App listening on port ${port}`);
@@ -145,6 +127,34 @@ app.listen(port, async () => {
 	}*/
 
 });
+
+
+// routes methods
+//
+async function handleCreate(req, res) {
+	try {
+		verifyAuthorization(req.headers);
+		const result = await handleCreateRequest(req.body);
+		console.log({ result });
+		res.status(204).end();
+	} catch (error) {
+		res.status(errorStatus(error)).json({ reason: error.message });
+	}
+}
+
+async function handleDelete(req, res) {
+	try {
+		verifyAuthorization(req.headers);
+		const result = await handleDeleteRequest(req.body);
+		console.log({ result });
+		res.status(204).end();
+	} catch (error) {
+		res.status(errorStatus(error)).json({ reason: error.message });
+	}
+}
+//
+// routes methods
+
 
 async function handleDeleteRequest({ channel_id, refresh_token, reward_id }) {
 
@@ -227,7 +237,7 @@ async function unlistenToChannel(state) {
 
 async function insertRewardEntity(state, reward) {
 	const store = twitchRequest.getTokenStore(state.channel_id);
-	return storage.insertRewardEntity({ channel_id: state.channel_id, refresh_token: store.refresh_token, reward_id: reward.id })
+	return storage.insertRewardEntity({ channel_id: state.channel_id, refresh_token: store.refresh_token, reward_id: reward.id, title: reward.title })
 		.then(state.resolve)
 		.catch(state.reject);
 }

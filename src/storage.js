@@ -28,21 +28,23 @@ function entityMapRedemption(entity) {
 	};
 }
 
-function insertRewardTask({ channel_id, refresh_token, reward_id }) {
+function insertRewardTask({ channel_id, refresh_token, reward_id, title }) {
 	return {
 		PartitionKey: { '_': partitionRewards },
 		RowKey: { '_': channel_id },
 		refresh_token: { '_': refresh_token },
-		reward_id: { '_': reward_id }
+		reward_id: { '_': reward_id },
+		title: { '_': title }
 	};
 }
 
-function insertRedemptionTask({ channel_id, reward_id, redemption_id }) {
+function insertRedemptionTask({ channel_id, reward_id, redemption_id, username }) {
 	return {
 		PartitionKey: { '_': partitionRedemptions },
 		RowKey: { '_': redemption_id },
 		channel_id: { '_': channel_id },
-		reward_id: { '_': reward_id }
+		reward_id: { '_': reward_id },
+		username: { '_': username }
 	};
 }
 
@@ -60,18 +62,18 @@ function deleteRedemptionTask(redemption_id) {
 	};
 }
 
-async function insertRewardEntity({ channel_id, refresh_token, reward_id }) {
+async function insertRewardEntity({ channel_id, refresh_token, reward_id, title }) {
 	return new Promise(resolve => {
-		const task = insertRewardTask({ channel_id, refresh_token, reward_id });
+		const task = insertRewardTask({ channel_id, refresh_token, reward_id, title });
 		tableSvc.insertEntity(tableNameRewards, task, (error, result, response) => {
 			resolve({ error, result, response });
 		});
 	});
 }
 
-async function insertRedemptionEntity(item) {
+async function insertRedemptionEntity({ channel_id, reward_id, redemption_id, username }) {
 	return new Promise(resolve => {
-		const task = insertRedemptionTask(item);
+		const task = insertRedemptionTask({ channel_id, reward_id, redemption_id, username });
 		tableSvc.insertEntity(tableNameRedemptions, task, (error, result, response) => {
 			resolve({ error, result, response });
 		});

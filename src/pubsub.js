@@ -142,7 +142,7 @@ function connect() {
 
 					console.log({ result });
 
-					const storageResult = await storage.insertRedemptionEntity({ channel_id, redemption_id, reward_id });
+					const storageResult = await storage.insertRedemptionEntity({ channel_id, redemption_id, reward_id, username });
 					console.log({ storageResult });
 				} catch (error) {
 					console.log(error);
