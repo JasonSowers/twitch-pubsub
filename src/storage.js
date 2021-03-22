@@ -6,16 +6,26 @@ const azure = require('azure-storage');
 
 const tableSvc = azure.createTableService();
 
+const tableNameUsers = 'Users';
+const partitionUsers = '';
+
 const tableNameRewards = 'Rewards';
 const partitionRewards = 'Card';
 
 const tableNameRedemptions = 'Redemptions';
 const partitionRedemptions = 'Pending';
 
+function entityMapUser(entity) {
+	return {
+		channel_id: entity.channel_id._,
+		access_token: entity.access_token._,
+	};
+}
+
 function entityMapReward(entity) {
 	return {
 		channel_id: entity.RowKey._,
-		refresh_token: entity.refresh_token._,
+		refresh_token: entity.refresh_token ? entity.refresh_token._ : null,
 		reward_id: entity.reward_id._
 	};
 }
@@ -28,11 +38,10 @@ function entityMapRedemption(entity) {
 	};
 }
 
-function insertRewardTask({ channel_id, refresh_token, reward_id, title }) {
+function insertRewardTask({ channel_id, reward_id, title }) {
 	return {
 		PartitionKey: { '_': partitionRewards },
 		RowKey: { '_': channel_id },
-		refresh_token: { '_': refresh_token },
 		reward_id: { '_': reward_id },
 		title: { '_': title }
 	};
@@ -62,9 +71,9 @@ function deleteRedemptionTask(redemption_id) {
 	};
 }
 
-async function insertRewardEntity({ channel_id, refresh_token, reward_id, title }) {
+async function insertRewardEntity({ channel_id, reward_id, title }) {
 	return new Promise(resolve => {
-		const task = insertRewardTask({ channel_id, refresh_token, reward_id, title });
+		const task = insertRewardTask({ channel_id, reward_id, title });
 		tableSvc.insertEntity(tableNameRewards, task, (error, result, response) => {
 			resolve({ error, result, response });
 		});
@@ -79,7 +88,6 @@ async function insertRedemptionEntity({ channel_id, reward_id, redemption_id, us
 		});
 	});
 }
-
 
 async function retrieveRewardEntity(channel_id) {
 	return new Promise(resolve => {
@@ -122,6 +130,28 @@ async function deleteRedemptionEntites(redemption_ids) {
 	});
 }
 
+function queryUserEntries(entriesCallback) {
+	/*
+			W I P below
+	*/
+	var query = new azure.TableQuery();
+
+	var nextContinuationToken = null;
+	tableSvc.queryEntities(tableNameUsers,
+		query,
+		nextContinuationToken,
+		function (error, results) {
+			if (error) throw error;
+
+			// iterate through results.entries with results
+			entriesCallback({ entries: results.entries, continuationToken: results.continuationToken });
+			if (results.continuationToken) {
+				nextContinuationToken = results.continuationToken;
+			}
+
+		});
+}
+
 function queryRewardEntries(entriesCallback) {
 	/*
 			W I P below
@@ -144,6 +174,7 @@ function queryRewardEntries(entriesCallback) {
 
 		});
 }
+
 function queryRedemptionEntites(entriesCallback) {
 	/*
 			W I P below
@@ -185,9 +216,11 @@ async function connect() {
 
 module.exports = {
 	connect,
+	entityMapUser,
 	entityMapReward,
 	entityMapRedemption,
 	retrieveRewardEntity,
+	queryUserEntries,
 	queryRewardEntries,
 	queryRedemptionEntites,
 	insertRewardEntity,

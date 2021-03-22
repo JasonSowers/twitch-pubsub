@@ -199,14 +199,14 @@ function clearPongWaitTimeout() {
 }
 
 async function listenToChannel(channel_id) {
-	const store = await twitchRequest.refreshOrValidateStore(channel_id);
-	listen(`channel-points-channel-v1.${channel_id}`, store.access_token);
+	const access_token = await twitchRequest.tokenOrThrow(channel_id);
+	listen(`channel-points-channel-v1.${channel_id}`, access_token);
 	return `Listening to channel-points-channel-v1.${channel_id}`;
 }
 
 async function unlistenToChannel(channel_id) {
-	const store = await twitchRequest.refreshOrValidateStore(channel_id);
-	unlisten(`channel-points-channel-v1.${channel_id}`, store.access_token);
+	const access_token = await twitchRequest.tokenOrThrow(channel_id);
+	unlisten(`channel-points-channel-v1.${channel_id}`, access_token);
 	return `Stopped tistening to channel-points-channel-v1.${channel_id}`;
 }
 

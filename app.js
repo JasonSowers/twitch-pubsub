@@ -66,27 +66,34 @@ app.listen(port, async () => {
 	pubsub.connect();
 
 	await new Promise(resolve => {
-		storage.queryRewardEntries(async ({ entries, continuationToken }) => {
+		storage.queryUserEntries(async ({ entries, continuationToken }) => {
 			console.log({ entries });
 			if (entries.length === 0) return resolve();
-			const items = entries.map(storage.entityMapReward);
+			const items = entries.map(storage.entityMapUser);
 
 			console.log({ items });
 			const promises = [];
 
-			for (const channel in items) {
+			for (let i = 0; i < items.length; i++) {
 
-				const { refresh_token, channel_id, reward_id } = items[channel];
+				const { access_token, channel_id } = items[i];
 
-				const state = { channel_id, reward_id };
+				const state = { channel_id, access_token };
 
 				const promise = new Promise((resolve, reject) => {
 					state.resolve = resolve;
 					state.reject = reject;
-					resolve(refresh_token);
+					resolve();
 				})
-					.then(asPromiseWithState(createTokensIfNeeded, state))
-					.then(asPromiseWithState(getCustomRewardCard, state))
+					.then(asPromiseWithState(state => {
+						twitchRequest.storeTokens([{ channel_id: state.channel_id, access_token: state.access_token }]);
+						state.resolve();
+					}, state))
+					.then(asPromiseWithState(getCustomRewards, state))
+					.then(asPromiseWithState((state, rewards) => {
+						console.log({ state, rewards });
+						state.resolve();
+					}, state))
 					.then(asPromiseWithState(listenToChannel, state))
 					.catch(e => e);
 				promises.push(promise);
@@ -236,8 +243,7 @@ async function unlistenToChannel(state) {
 }
 
 async function insertRewardEntity(state, reward) {
-	const store = twitchRequest.getTokenStore(state.channel_id);
-	return storage.insertRewardEntity({ channel_id: state.channel_id, refresh_token: store.refresh_token, reward_id: reward.id, title: reward.title })
+	return storage.insertRewardEntity({ channel_id: state.channel_id, reward_id: reward.id, title: reward.title })
 		.then(state.resolve)
 		.catch(state.reject);
 }
@@ -315,17 +321,17 @@ async function getCustomRewardCard(state) {
 		.catch(state.reject);
 }
 
-async function createTokensIfNeeded(state, refresh_token) {
-	const store = twitchRequest.getTokenStore(state.channel_id);
-	if (!store) {
-		const authenticated = await twitchRequest.refreshAccessToken({
-			refresh_token: refresh_token,
-			client_id: process.env.CLIENT_ID,
-			client_secret: process.env.CLIENT_SECRET
-		}).catch(e => {
-			state.reject(e);
-		});
-		twitchRequest.storeTokens([{ authenticated, channel_id: state.channel_id }]);
-	}
-	state.resolve();
-}
+// async function createTokensIfNeeded(state, refresh_token) {
+// 	const store = twitchRequest.getTokenStore(state.channel_id);
+// 	if (!store) {
+// 		const authenticated = await twitchRequest.refreshAccessToken({
+// 			refresh_token: refresh_token,
+// 			client_id: process.env.CLIENT_ID,
+// 			client_secret: process.env.CLIENT_SECRET
+// 		}).catch(e => {
+// 			state.reject(e);
+// 		});
+// 		twitchRequest.storeTokens([{ authenticated, channel_id: state.channel_id }]);
+// 	}
+// 	state.resolve();
+// }

@@ -42,7 +42,7 @@ function tokenOrThrow(broadcaster_id) {
 	return tokenStore[broadcaster_id];
 }
 
-async function refreshOrValidateStore(broadcaster_id) {
+/*async function refreshOrValidateStore(broadcaster_id) {
 	let store = tokenOrThrow(broadcaster_id);
 
 	if (twitchOAuth.refreshTokenNeeded(store)) {
@@ -65,24 +65,24 @@ async function refreshOrValidateStore(broadcaster_id) {
 		}
 	}
 	return store;
-}
+}*/
 
 /**
  * throws if the broadcaster_id does not have an access token
  */
 async function createCustomReward(broadcaster_id, data) {
-	const store = await refreshOrValidateStore(broadcaster_id);
+	const access_token = await tokenOrThrow(broadcaster_id);
 
 	const url = `${HELIX_API_BASE_PATH}/channel_points/custom_rewards?broadcaster_id=${broadcaster_id}`;
 	const options = {
 		method: 'POST',
 		body: JSON.stringify(data)
 	};
-	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, store.access_token, url, options);
+	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, access_token, url, options);
 }
 
 async function deleteCustomReward(broadcaster_id, reward_id) {
-	const store = await refreshOrValidateStore(broadcaster_id);
+	const access_token = await tokenOrThrow(broadcaster_id);
 
 	const searchParamsEntries = [
 		['broadcaster_id', broadcaster_id],
@@ -95,32 +95,32 @@ async function deleteCustomReward(broadcaster_id, reward_id) {
 	const options = {
 		method: 'DELETE'
 	};
-	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, store.access_token, url, options);
+	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, access_token, url, options);
 }
 
 async function getCustomRewards(broadcaster_id) {
-	const store = await refreshOrValidateStore(broadcaster_id, only_manageable_rewards = true);
+	const access_token = await tokenOrThrow(broadcaster_id, only_manageable_rewards = false);
 
 	const url = `${HELIX_API_BASE_PATH}/channel_points/custom_rewards?broadcaster_id=${broadcaster_id}&only_manageable_rewards=${only_manageable_rewards}`;
 	const options = {
 		method: 'GET'
 	};
-	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, store.access_token, url, options);
+	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, access_token, url, options);
 }
 
 
 async function getCustomRewardCard(broadcaster_id, reward_id) {
-	const store = await refreshOrValidateStore(broadcaster_id);
+	const access_token = await tokenOrThrow(broadcaster_id);
 
 	const url = `${HELIX_API_BASE_PATH}/channel_points/custom_rewards?broadcaster_id=${broadcaster_id}&id=${reward_id}`;
 	const options = {
 		method: 'GET'
 	};
-	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, store.access_token, url, options);
+	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, access_token, url, options);
 }
 
 async function getCustomRewardRedemption(broadcaster_id, redemption_id, reward_id) {
-	const store = await refreshOrValidateStore(broadcaster_id);
+	const access_token = await tokenOrThrow(broadcaster_id);
 
 	const searchParamsEntries = [
 		['broadcaster_id', broadcaster_id],
@@ -134,12 +134,12 @@ async function getCustomRewardRedemption(broadcaster_id, redemption_id, reward_i
 	const options = {
 		method: 'GET'
 	};
-	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, store.access_token, url, options);
+	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, access_token, url, options);
 }
 
 // status = FULFILLED or CANCELED
 async function updateRedemptionStatus({ broadcaster_id, redemption_id, reward_id }, status) {
-	const store = await refreshOrValidateStore(broadcaster_id);
+	const access_token = await tokenOrThrow(broadcaster_id);
 
 	const searchParamsEntries = [
 		['broadcaster_id', broadcaster_id],
@@ -154,7 +154,7 @@ async function updateRedemptionStatus({ broadcaster_id, redemption_id, reward_id
 		method: 'PATCH',
 		body: JSON.stringify({ status })
 	};
-	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, store.access_token, url, options);
+	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, access_token, url, options);
 }
 
 async function refreshAccessToken({ refresh_token, client_id, client_secret }) {
@@ -167,8 +167,8 @@ async function refreshAccessToken({ refresh_token, client_id, client_secret }) {
 function storeTokens(items) {
 	for (let i = 0; i < items.length; i++) {
 		const item = items[i];
-		if (item.authenticated) {
-			tokenStore[item.channel_id] = item.authenticated;
+		if (item.access_token) {
+			tokenStore[item.channel_id] = item.access_token;
 		} else {
 			delete tokenStore[item.channel_id];
 		}
@@ -197,7 +197,7 @@ module.exports = {
 	refreshAccessToken,
 	storeTokens,
 	getTokenStore,
-	refreshOrValidateStore,
+	tokenOrThrow,
 	createCustomReward,
 	deleteCustomReward,
 	getCustomRewards,
