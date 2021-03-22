@@ -36,13 +36,13 @@ app.get('/auth/callback', async (req, res) => {
 
 		const channel_id = '75987197';
 		const authenticated = twitchRequest.getAuthenticated();
+		const title = '360 10 times';
 		const reward_id = '7e91b9cb-8763-49dd-a3f2-95956159da51';
-		//const { refresh_token, reward_id } = await storage.getToken(channel_id);// 'oyxhyos5jb2p54bma5nm3ogwbbgp4vxv6orw86bapcp6vj9hk1';
 
 		const item = await storage.getChannelItem(channel_id);
 		console.log({ item });
 		if (item.response.statusCode === 404) {
-			await storage.insertRewardEntity({ channel_id, refresh_token: authenticated.refresh_token, reward_id });
+			await storage.insertRewardEntity({ channel_id, reward_id, title });
 		}
 
 		res.status(200).send('Twitch API authenticated.  You can close this browser window/tab.');
@@ -163,7 +163,7 @@ async function handleDelete(req, res) {
 // routes methods
 
 
-async function handleDeleteRequest({ channel_id, refresh_token, reward_id }) {
+async function handleDeleteRequest({ channel_id, reward_id }) {
 
 	const state = { channel_id, reward_id };
 
@@ -174,9 +174,8 @@ async function handleDeleteRequest({ channel_id, refresh_token, reward_id }) {
 	return new Promise((resolve, reject) => {
 		state.resolve = resolve;
 		state.reject = reject;
-		resolve(refresh_token);
+		resolve();
 	})
-		.then(asPromiseWithState(createTokensIfNeeded, state))
 		.then(asPromiseWithState(deleteCustomReward, state))
 		.then(asPromiseWithState(queryRedemptionEntites, state))
 		.then(asPromiseWithState(deleteRedemptionEntites, state))
@@ -184,16 +183,15 @@ async function handleDeleteRequest({ channel_id, refresh_token, reward_id }) {
 		.then(asPromiseWithState(unlistenToChannel, state));
 }
 
-async function handleCreateRequest({ channel_id, refresh_token, title, prompt, cost }) {
+async function handleCreateRequest({ channel_id, title, prompt, cost }) {
 
 	const state = { channel_id, title, prompt, cost };
 
 	return new Promise((resolve, reject) => {
 		state.resolve = resolve;
 		state.reject = reject;
-		resolve(refresh_token);
+		resolve();
 	})
-		.then(asPromiseWithState(createTokensIfNeeded, state))
 		.then(asPromiseWithState(getCustomRewards, state))
 		.then(asPromiseWithState(createCustomReward, state))
 		.then(asPromiseWithState(insertRewardEntity, state))
@@ -320,18 +318,3 @@ async function getCustomRewardCard(state) {
 		.then(state.resolve)
 		.catch(state.reject);
 }
-
-// async function createTokensIfNeeded(state, refresh_token) {
-// 	const store = twitchRequest.getTokenStore(state.channel_id);
-// 	if (!store) {
-// 		const authenticated = await twitchRequest.refreshAccessToken({
-// 			refresh_token: refresh_token,
-// 			client_id: process.env.CLIENT_ID,
-// 			client_secret: process.env.CLIENT_SECRET
-// 		}).catch(e => {
-// 			state.reject(e);
-// 		});
-// 		twitchRequest.storeTokens([{ authenticated, channel_id: state.channel_id }]);
-// 	}
-// 	state.resolve();
-// }

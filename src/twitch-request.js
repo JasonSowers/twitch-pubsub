@@ -42,31 +42,6 @@ function tokenOrThrow(broadcaster_id) {
 	return tokenStore[broadcaster_id];
 }
 
-/*async function refreshOrValidateStore(broadcaster_id) {
-	let store = tokenOrThrow(broadcaster_id);
-
-	if (twitchOAuth.refreshTokenNeeded(store)) {
-		const authenticated = await refreshAccessToken({
-			refresh_token: store.refresh_token,
-			client_id: process.env.API_CLIENT_ID,
-			client_secret: process.env.API_SECRET
-		});
-		storeTokens([{ authenticated, ircTarget: broadcaster_id }]);
-				
-		store = getTokenStore(broadcaster_id);
-	} else {
-		const d = new Date();
-		const time = d.getTime();
-		const secondsInHour = 3600;
-		const next_validation_ms = store.last_validated + (secondsInHour * 1000);
-		if (time > next_validation_ms) {
-			const validate = await twitchOAuth.validateWithCredentials(process.env.API_CLIENT_ID, store.access_token);
-			console.log({ validate });
-		}
-	}
-	return store;
-}*/
-
 /**
  * throws if the broadcaster_id does not have an access token
  */
@@ -155,11 +130,6 @@ async function updateRedemptionStatus({ broadcaster_id, redemption_id, reward_id
 		body: JSON.stringify({ status })
 	};
 	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, access_token, url, options);
-}
-
-async function refreshAccessToken({ refresh_token, client_id, client_secret }) {
-	//throw new Error('bail test');
-	return twitchOAuth.fetchRefreshTokenWithCredentials(client_id, client_secret, refresh_token);
 }
 
 /* User token require ABOVE */

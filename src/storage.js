@@ -25,8 +25,8 @@ function entityMapUser(entity) {
 function entityMapReward(entity) {
 	return {
 		channel_id: entity.RowKey._,
-		refresh_token: entity.refresh_token ? entity.refresh_token._ : null,
-		reward_id: entity.reward_id._
+		reward_id: entity.reward_id._,
+		title: entity.title._,
 	};
 }
 
