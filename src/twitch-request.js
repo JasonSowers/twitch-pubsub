@@ -18,7 +18,7 @@ const twitchOAuth = new TwitchOAuth({
 	redirect_uri: process.env.CALLBACK_URL,
 	scopes: [
 		'channel:read:redemptions',
-		'channel:manage:redemptions'
+		'channel:manage:redemptions'		
 	]
 }, state);
 

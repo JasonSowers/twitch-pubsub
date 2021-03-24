@@ -64,7 +64,7 @@ app.listen(port, async () => {
 	await storage.connect();
 
 	pubsub.connect();
-
+	 await pubsub.listenToChannel('42403530');
 	await new Promise(resolve => {
 		storage.queryRewardEntries(async ({ entries, continuationToken }) => {
 			console.log({ entries });
@@ -79,14 +79,12 @@ app.listen(port, async () => {
 				const { refresh_token, channel_id, reward_id } = items[channel];
 
 				const state = { channel_id, reward_id };
-
+console.log(state);
 				const promise = new Promise((resolve, reject) => {
 					state.resolve = resolve;
 					state.reject = reject;
 					resolve(refresh_token);
 				})
-					.then(asPromiseWithState(createTokensIfNeeded, state))
-					.then(asPromiseWithState(getCustomRewardCard, state))
 					.then(asPromiseWithState(listenToChannel, state))
 					.catch(e => e);
 				promises.push(promise);

@@ -14,9 +14,9 @@ const partitionRedemptions = 'Pending';
 
 function entityMapReward(entity) {
 	return {
-		channel_id: entity.RowKey._,
-		refresh_token: entity.refresh_token._,
-		reward_id: entity.reward_id._
+		channel_id: '42403530',//entity.RowKey._,
+		refresh_token: 'c6w19w02wm879dq1j5dvpju1hzegmo',//entity.refresh_token._,
+		reward_id: 'ee24a022-4157-463c-ad5e-7651692b3502'//entity.reward_id._ //ee24a022-4157-463c-ad5e-7651692b3502
 	};
 }
 

@@ -109,6 +109,7 @@ function connect() {
 	};
 
 	ws.onmessage = async (event) => {
+		console.log("####################################################")
 		const value = JSON.parse(event.data);
 		// console.log({ value });
 		switch (value.type) {
@@ -123,27 +124,34 @@ function connect() {
 					const reward_id = redemption.reward.id;
 					const username = redemption.user.login;
 
-					if (recentIds.includes(redemption_id)) throw new Error(`Redemption rejected duplicate id: ${redemption_id}`);
-					recentIds.push(redemption_id);
-
-					const entityReward = await storage.retrieveRewardEntity(channel_id);
-					if (entityReward.response.statusCode !== 200) throw new Error(`Record not found for channel ${channel_id}`);
-
-					const mappedReward = storage.entityMapReward(entityReward.result);
-					if (mappedReward.reward_id !== reward_id) throw new Error(`Reward id does not match: current: ${reward_id} stored: ${mappedReward.reward_id}`);
-
-					const sendData = { channel_id, username };
-
 					const options = {
 						method: 'POST',
-						body: JSON.stringify(sendData)
+						body: JSON.stringify(message.data.redemption),
+						headers: { 'Content-Type': 'application/json' }
 					};
-					const result = await fetch(url, options);
+					const result = await fetch('https://b1277cca67dc.ngrok.io/api/proactiveMessage', options);
 
-					console.log({ result });
+					// if (recentIds.includes(redemption_id)) throw new Error(`Redemption rejected duplicate id: ${redemption_id}`);
+					// recentIds.push(redemption_id);
 
-					const storageResult = await storage.insertRedemptionEntity({ channel_id, redemption_id, reward_id, username });
-					console.log({ storageResult });
+					// const entityReward = await storage.retrieveRewardEntity(channel_id);
+					// if (entityReward.response.statusCode !== 200) throw new Error(`Record not found for channel ${channel_id}`);
+
+					// const mappedReward = storage.entityMapReward(entityReward.result);
+					// if (mappedReward.reward_id !== reward_id) throw new Error(`Reward id does not match: current: ${reward_id} stored: ${mappedReward.reward_id}`);
+
+					// const sendData = { channel_id, username };
+
+					// const options = {
+					// 	method: 'POST',
+					// 	body: JSON.stringify(sendData)
+					// };
+					// const result = await fetch(url, Message);
+
+					// console.log({ result });
+
+					// const storageResult = await storage.insertRedemptionEntity({ channel_id, redemption_id, reward_id, username });
+					// console.log({ storageResult });
 				} catch (error) {
 					console.log(error);
 				}
@@ -199,14 +207,14 @@ function clearPongWaitTimeout() {
 }
 
 async function listenToChannel(channel_id) {
-	const store = await twitchRequest.refreshOrValidateStore(channel_id);
-	listen(`channel-points-channel-v1.${channel_id}`, store.access_token);
-	return `Listening to channel-points-channel-v1.${channel_id}`;
+	//const store = await twitchRequest.refreshOrValidateStore(channel_id);
+	listen('channel-points-channel-v1.42403530', 'c6w19w02wm879dq1j5dvpju1hzegmo');
+	return 'Listening to channel-points-channel-v1.42403530';
 }
 
 async function unlistenToChannel(channel_id) {
 	const store = await twitchRequest.refreshOrValidateStore(channel_id);
-	unlisten(`channel-points-channel-v1.${channel_id}`, store.access_token);
+	unlisten('channel-points-channel-v1.42403530', 'c6w19w02wm879dq1j5dvpju1hzegmo');
 	return `Stopped tistening to channel-points-channel-v1.${channel_id}`;
 }
 
