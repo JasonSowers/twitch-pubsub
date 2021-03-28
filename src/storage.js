@@ -17,7 +17,7 @@ const partitionRedemptions = 'Pending';
 
 function entityMapUser(entity) {
 	return {
-		channel_id: entity.channel_id._,
+		channel_id: entity.twitch_id._,
 		access_token: entity.access_token._,
 	};
 }
@@ -38,12 +38,16 @@ function entityMapRedemption(entity) {
 	};
 }
 
-function insertRewardTask({ channel_id, reward_id, title }) {
+function insertRewardTask({ channel_id, reward_id, title, prompt, cost }) {
 	return {
-		PartitionKey: { '_': partitionRewards },
-		RowKey: { '_': channel_id },
+		PartitionKey: { '_': channel_id },
+		RowKey: { '_': reward_id },
+		alexa_id: { '_': 'xxxx-xxxx'},
+		twitch_id: { '_': channel_id },
 		reward_id: { '_': reward_id },
-		title: { '_': title }
+		title: { '_': title },
+		cost: { '_': cost },
+		prompt: { '_': prompt },
 	};
 }
 
@@ -89,9 +93,9 @@ async function insertRedemptionEntity({ channel_id, reward_id, redemption_id, us
 	});
 }
 
-async function retrieveRewardEntity(channel_id) {
+async function retrieveRewardEntity(channel_id, reward_id) {
 	return new Promise(resolve => {
-		tableSvc.retrieveEntity(tableNameRewards, partitionRewards, channel_id, (error, result, response) => {
+		tableSvc.retrieveEntity(tableNameRewards, channel_id, reward_id, (error, result, response) => {
 			resolve({ error, result, response });
 		});
 	});

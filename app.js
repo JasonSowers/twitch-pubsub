@@ -30,7 +30,7 @@ app.get('/login', (req, res) => {
 app.get('/auth/callback', async (req, res) => {
 	try {
 
-		//await twitchRequest.authorize(req.query.code, req.query.state);
+		await twitchRequest.authorize(req.query.code, req.query.state);
 
 		console.log('authenticated');
 
@@ -39,11 +39,11 @@ app.get('/auth/callback', async (req, res) => {
 		const title = '360 10 times';
 		const reward_id = '7e91b9cb-8763-49dd-a3f2-95956159da51';
 
-		const item = await storage.getChannelItem(channel_id);
-		console.log({ item });
-		if (item.response.statusCode === 404) {
-			await storage.insertRewardEntity({ channel_id, reward_id, title });
-		}
+		// const item = await storage.getChannelItem(channel_id);
+		// console.log({ item });
+		// if (item.response.statusCode === 404) {
+		// 	await storage.insertRewardEntity({ channel_id, reward_id, title });
+		// }
 
 		res.status(200).send('Twitch API authenticated.  You can close this browser window/tab.');
 	} catch (err) {
@@ -58,8 +58,8 @@ app.route('/reward')
 
 app.listen(port, async () => {
 	console.log(`App listening on port ${port}`);
-	// const open = require('open');
-	// open(twitchRequest.authorizeUrl);
+	//const open = require('open');
+	//open(twitchRequest.authorizeUrl);
 
 	await storage.connect();
 
@@ -224,6 +224,7 @@ function errorStatus(error) {
 	switch (error.name) {
 		case 'RewardExistsError': return 500;
 		case 'UnauthorizedError': return 401;
+		case 'Error': return error.message === 'Unauthorized' ? 401 : 500;
 		default: return 500;
 	}
 }

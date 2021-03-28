@@ -73,8 +73,8 @@ async function deleteCustomReward(broadcaster_id, reward_id) {
 	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, access_token, url, options);
 }
 
-async function getCustomRewards(broadcaster_id) {
-	const access_token = await tokenOrThrow(broadcaster_id, only_manageable_rewards = false);
+async function getCustomRewards(broadcaster_id, only_manageable_rewards = false) {
+	const access_token = await tokenOrThrow(broadcaster_id);
 
 	const url = `${HELIX_API_BASE_PATH}/channel_points/custom_rewards?broadcaster_id=${broadcaster_id}&only_manageable_rewards=${only_manageable_rewards}`;
 	const options = {
@@ -164,7 +164,6 @@ module.exports = {
 	fetchRefreshToken,
 	getUsersByIds,
 	getUsersByName,
-	refreshAccessToken,
 	storeTokens,
 	getTokenStore,
 	tokenOrThrow,
