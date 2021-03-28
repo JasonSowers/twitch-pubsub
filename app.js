@@ -33,7 +33,7 @@ app.get('/auth/callback', async (req, res) => {
 		await twitchRequest.authorize(req.query.code, req.query.state);
 		console.log('authenticated');
 		const authenticated = twitchRequest.getAuthenticated();
-		
+
 		res.status(200).send('Twitch API authenticated.  You can close this browser window/tab.');
 	} catch (err) {
 		console.error(err);
@@ -52,46 +52,50 @@ app.listen(port, async () => {
 
 	pubsub.connect();
 
-	await new Promise(resolve => {
-		storage.queryUserEntries(async ({ entries, continuationToken }) => {
-			//console.log({ entries });
-			if (entries.length === 0) return resolve();
-			const items = entries.map(storage.entityMapUser);
+	storage.queryUserEntries(processUserEntries);
 
-			//console.log({ items });
-			const promises = [];
-
-			for (let i = 0; i < items.length; i++) {
-
-				const state = items[i];
-
-				const promise = new Promise((resolve, reject) => {
-					state.resolve = resolve;
-					state.reject = reject;
-					resolve();
-				})
-					.then(asPromiseWithState(storeToken, state))
-					// Debug stuff get and show rewards
-					// .then(asPromiseWithState(getCustomRewards, state))
-					// .then(asPromiseWithState((state, rewards) => {
-					// 	console.log({ state, rewards });
-					// 	state.resolve();
-					// }, state))
-					.then(asPromiseWithState(listenToChannel, state))
-					.catch(e => e);
-				promises.push(promise);
-			}
-
-			const results = await Promise.all(promises);
-			console.log({ results });
-
-			if (!continuationToken) {
-				resolve();
-			}
-		});
-	});
 });
 
+/**
+ * processes batches of user entries and listens to channels for redemptions
+ * 
+ * @param {*} param entries and the continuationToken 
+ * 
+ * @returns true when done
+ */
+async function processUserEntries({ entries, continuationToken }) {
+	//console.log({ entries });
+	if (entries.length === 0) return true;
+	const items = entries.map(storage.entityMapUser);
+
+	//console.log({ items });
+	const promises = [];
+
+	for (let i = 0; i < items.length; i++) {
+
+		const state = items[i];
+
+		const promise = new Promise((resolve, reject) => {
+			state.resolve = resolve;
+			state.reject = reject;
+			resolve();
+		})
+			.then(asPromiseWithState(storeToken, state))
+			.then(asPromiseWithState(listenToChannel, state))
+			.catch(e => e);
+
+		promises.push(promise);
+	}
+
+	const results = await Promise.all(promises);
+	console.log({ results });
+
+	if (!continuationToken) {
+		return true;
+	}
+
+	return false;
+}
 
 // routes methods
 //

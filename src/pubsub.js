@@ -132,9 +132,9 @@ function connect() {
 					const mappedReward = storage.entityMapReward(entityReward.result);
 					if (mappedReward.reward_id !== reward_id) throw new Error(`Reward id does not match: current: ${reward_id} stored: ${mappedReward.reward_id}`);
 
-					const sendData = { 
-						twitch_id: channel_id, 
-						viewer_name: username 
+					const sendData = {
+						twitch_id: channel_id,
+						viewer_name: username
 					};
 
 					const options = {
@@ -142,10 +142,11 @@ function connect() {
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify(sendData)
 					};
-					const result = await fetch(process.env.URL_REDEMPTION, options);
-					console.log({ result });
+					const { status } = await fetch(process.env.URL_REDEMPTION, options);
+					
+					console.log({ status, reward_id, ...sendData });
 				} catch (error) {
-					console.log(error);
+					console.error(error);
 				}
 
 				break;
@@ -158,7 +159,7 @@ function connect() {
 				break;
 			case 'RESPONSE':
 				if (value.error) {
-					console.log(value);
+					console.error(value);
 				}
 				break;
 			default:
