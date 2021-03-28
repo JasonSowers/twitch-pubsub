@@ -202,24 +202,7 @@ function queryRedemptionEntites(entriesCallback) {
 		});
 }
 
-async function connect() {
-
-	const createRewardsTableResult = await new Promise(resolve => {
-		tableSvc.createTableIfNotExists(tableNameRewards, function (error, result, response) {
-			resolve({ error, result, response });
-		});
-	});
-
-	const createRedemptionsTableResult = await new Promise(resolve => {
-		tableSvc.createTableIfNotExists(tableNameRedemptions, function (error, result, response) {
-			resolve({ error, result, response });
-		});
-	});
-	console.log({ createRewardsTableResult, createRedemptionsTableResult });
-}
-
 module.exports = {
-	connect,
 	entityMapUser,
 	entityMapReward,
 	entityMapRedemption,

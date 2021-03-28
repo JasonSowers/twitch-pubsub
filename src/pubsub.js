@@ -132,7 +132,10 @@ function connect() {
 					const mappedReward = storage.entityMapReward(entityReward.result);
 					if (mappedReward.reward_id !== reward_id) throw new Error(`Reward id does not match: current: ${reward_id} stored: ${mappedReward.reward_id}`);
 
-					const sendData = { twitch_id: channel_id, viewer_name: username };
+					const sendData = { 
+						twitch_id: channel_id, 
+						viewer_name: username 
+					};
 
 					const options = {
 						method: 'POST',

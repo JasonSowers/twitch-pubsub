@@ -31,20 +31,9 @@ app.get('/auth/callback', async (req, res) => {
 	try {
 
 		await twitchRequest.authorize(req.query.code, req.query.state);
-
 		console.log('authenticated');
-
-		const channel_id = '75987197';
 		const authenticated = twitchRequest.getAuthenticated();
-		const title = '360 10 times';
-		const reward_id = '7e91b9cb-8763-49dd-a3f2-95956159da51';
-
-		// const item = await storage.getChannelItem(channel_id);
-		// console.log({ item });
-		// if (item.response.statusCode === 404) {
-		// 	await storage.insertRewardEntity({ channel_id, reward_id, title });
-		// }
-
+		
 		res.status(200).send('Twitch API authenticated.  You can close this browser window/tab.');
 	} catch (err) {
 		console.error(err);
@@ -61,39 +50,33 @@ app.listen(port, async () => {
 	//const open = require('open');
 	//open(twitchRequest.authorizeUrl);
 
-	await storage.connect();
-
 	pubsub.connect();
 
 	await new Promise(resolve => {
 		storage.queryUserEntries(async ({ entries, continuationToken }) => {
-			console.log({ entries });
+			//console.log({ entries });
 			if (entries.length === 0) return resolve();
 			const items = entries.map(storage.entityMapUser);
 
-			console.log({ items });
+			//console.log({ items });
 			const promises = [];
 
 			for (let i = 0; i < items.length; i++) {
 
-				const { access_token, channel_id } = items[i];
-
-				const state = { channel_id, access_token };
+				const state = items[i];
 
 				const promise = new Promise((resolve, reject) => {
 					state.resolve = resolve;
 					state.reject = reject;
 					resolve();
 				})
-					.then(asPromiseWithState(state => {
-						twitchRequest.storeTokens([{ channel_id: state.channel_id, access_token: state.access_token }]);
-						state.resolve();
-					}, state))
-					.then(asPromiseWithState(getCustomRewards, state))
-					.then(asPromiseWithState((state, rewards) => {
-						console.log({ state, rewards });
-						state.resolve();
-					}, state))
+					.then(asPromiseWithState(storeToken, state))
+					// Debug stuff get and show rewards
+					// .then(asPromiseWithState(getCustomRewards, state))
+					// .then(asPromiseWithState((state, rewards) => {
+					// 	console.log({ state, rewards });
+					// 	state.resolve();
+					// }, state))
 					.then(asPromiseWithState(listenToChannel, state))
 					.catch(e => e);
 				promises.push(promise);
@@ -107,32 +90,6 @@ app.listen(port, async () => {
 			}
 		});
 	});
-
-	/*const redemptions = await storage.getRedemptions();
-
-	const redemption = redemptions[0];
-	if (redemption) {
-		const redemption_id = redemption.redemption_id;
-		const reward_id = redemption.reward_id;
-		const result = await twitchRequest.getCustomRewardRedemption(channel_id, redemption_id, reward_id)
-			.catch(e => e);
-
-		const redeemOne = result.data[0];
-		if(redeemOne) {
-			if (redeemOne.status === 'UNFULFILLED') {
-				console.log({ result });
-				const redeemResult = await twitchRequest.updateRedemptionStatus(redemption, 'FULFILLED');
-				console.log({ redeemResult });
-				
-				await storage.removeRedemption(redemption);
-			} else {
-				await storage.removeRedemption(redemption);
-			}
-		}
-	} else {
-		console.log('No Redemption');
-	}*/
-
 });
 
 
@@ -227,6 +184,11 @@ function errorStatus(error) {
 		case 'Error': return error.message === 'Unauthorized' ? 401 : 500;
 		default: return 500;
 	}
+}
+
+async function storeToken(state) {
+	twitchRequest.storeTokens([{ channel_id: state.channel_id, access_token: state.access_token }]);
+	state.resolve();
 }
 
 async function listenToChannel(state) {
