@@ -45,7 +45,7 @@ app.route('/reward')
 	.put(handleCreate)
 	.delete(handleDelete);
 
-app.listen(port, async () => {
+app.listen(port, () => {
 	console.log(`App listening on port ${port}`);
 	//const open = require('open');
 	//open(twitchRequest.authorizeUrl);
@@ -53,7 +53,6 @@ app.listen(port, async () => {
 	pubsub.connect();
 
 	storage.queryUserEntries(processUserEntries);
-
 });
 
 /**
@@ -64,40 +63,45 @@ app.listen(port, async () => {
  * @returns true when done
  */
 async function processUserEntries({ entries, continuationToken }) {
-	//console.log({ entries });
-	if (entries.length === 0) return true;
-	const items = entries.map(storage.entityMapUser);
+	try {
+		//console.log({ entries });
+		if (entries.length === 0) return true;
+		const items = entries.map(storage.entityMapUser);
 
-	//console.log({ items });
-	const promises = [];
+		//console.log({ items });
+		const promises = [];
 
-	for (let i = 0; i < items.length; i++) {
+		for (let i = 0; i < items.length; i++) {
 
-		const state = items[i];
+			const state = items[i];
 
-		const promise = new Promise((resolve, reject) => {
-			state.resolve = resolve;
-			state.reject = reject;
-			resolve();
-		})
-			.then(asPromiseWithState(storeToken, state))
-			.then(asPromiseWithState(listenToChannel, state))
-			.catch(e => e);
+			const promise = new Promise((resolve, reject) => {
+				state.resolve = resolve;
+				state.reject = reject;
+				resolve();
+			})
+				.then(asPromiseWithState(storeToken, state))
+				.then(asPromiseWithState(listenToChannel, state))
+				.catch(e => e);
 
-		promises.push(promise);
+			promises.push(promise);
+		}
+
+		const results = await Promise.all(promises);
+		console.log({ results });
+
+		if (!continuationToken) return true;
+
+		return false;
+
+	} catch (error) { 
+		// return a value below?? true to stop false to keep trying
+		// do I need a 'retry' attempt amount
+		console.error(error);
 	}
-
-	const results = await Promise.all(promises);
-	console.log({ results });
-
-	if (!continuationToken) {
-		return true;
-	}
-
-	return false;
 }
 
-// routes methods
+// create/delete for testing without the alexa skill
 //
 async function handleCreate(req, res) {
 	try {
@@ -120,9 +124,6 @@ async function handleDelete(req, res) {
 		res.status(errorStatus(error)).json({ reason: error.message });
 	}
 }
-//
-// routes methods
-
 
 async function handleDeleteRequest({ channel_id, reward_id }) {
 
@@ -158,6 +159,8 @@ async function handleCreateRequest({ channel_id, title, prompt, cost }) {
 		.then(asPromiseWithState(insertRewardEntity, state))
 		.then(asPromiseWithState(listenToChannel, state));
 }
+//
+// create/delete for testing without the alexa skill
 
 function asPromiseWithState(f, state) {
 	return (input_arg) => {
