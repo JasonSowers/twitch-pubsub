@@ -55,8 +55,8 @@ app.route('/reward')
 
 app.listen(port, () => {
 	console.log(`App listening on port ${port}`);
-	const open = require('open');
-	open(twitchRequest.authorizeUrl);
+	//const open = require('open');
+	//open(twitchRequest.authorizeUrl);
 
 	pubsub.connect();
 
