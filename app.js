@@ -41,14 +41,24 @@ app.get('/auth/callback', async (req, res) => {
 	}
 });
 
+app.post('/ping', async (req, res) => {
+	try {
+		verifyAuthorization(req.headers)
+		const json = await twitchRequest.getUsersByIds([req.body.channel_id]);
+		res.status(200).json(json);
+	} catch (error) {
+		res.status(401).json({ reason: error.message });
+	}
+});
+
 app.route('/reward')
 	.put(handleCreate)
 	.delete(handleDelete);
 
 app.listen(port, () => {
 	console.log(`App listening on port ${port}`);
-	//const open = require('open');
-	//open(twitchRequest.authorizeUrl);
+	const open = require('open');
+	open(twitchRequest.authorizeUrl);
 
 	pubsub.connect();
 
@@ -139,8 +149,6 @@ async function handleDeleteRequest({ channel_id, reward_id }) {
 		resolve();
 	})
 		.then(asPromiseWithState(deleteCustomReward, state))
-		.then(asPromiseWithState(queryRedemptionEntites, state))
-		.then(asPromiseWithState(deleteRedemptionEntites, state))
 		.then(asPromiseWithState(deleteRewardEntity, state))
 		.then(asPromiseWithState(unlistenToChannel, state));
 }
@@ -220,31 +228,6 @@ async function deleteRewardEntity(state) {
 	return storage.deleteRewardEntity(state.channel_id)
 		.then(state.resolve)
 		.catch(state.reject);
-}
-
-async function deleteRedemptionEntites(state, redemption_ids) {
-	return storage.deleteRedemptionEntites(redemption_ids)
-		.then(state.resolve)
-		.catch(state.reject);
-}
-
-async function queryRedemptionEntites(state) {
-	try {
-		const redemption_ids = [];
-		storage.queryRedemptionEntites(({ entries, continuationToken }) => {
-			console.log({ entries });
-
-			const items = entries.map(x => x.RowKey._);
-			console.log({ items });
-
-			redemption_ids.push(...items);
-			if (!continuationToken) {
-				state.resolve(redemption_ids);
-			}
-		});
-	} catch (error) {
-		state.reject(error);
-	}
 }
 
 /**

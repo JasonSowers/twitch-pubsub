@@ -94,44 +94,6 @@ async function getCustomRewardCard(broadcaster_id, reward_id) {
 	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, access_token, url, options);
 }
 
-async function getCustomRewardRedemption(broadcaster_id, redemption_id, reward_id) {
-	const access_token = await tokenOrThrow(broadcaster_id);
-
-	const searchParamsEntries = [
-		['broadcaster_id', broadcaster_id],
-		['id', redemption_id],
-		['reward_id', reward_id]
-	];
-	const searchParams = new URLSearchParams(searchParamsEntries);
-	const urlQuery = searchParams.toString();
-
-	const url = `${HELIX_API_BASE_PATH}/channel_points/custom_rewards/redemptions?${urlQuery}`;
-	const options = {
-		method: 'GET'
-	};
-	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, access_token, url, options);
-}
-
-// status = FULFILLED or CANCELED
-async function updateRedemptionStatus({ broadcaster_id, redemption_id, reward_id }, status) {
-	const access_token = await tokenOrThrow(broadcaster_id);
-
-	const searchParamsEntries = [
-		['broadcaster_id', broadcaster_id],
-		['id', redemption_id],
-		['reward_id', reward_id]
-	];
-	const searchParams = new URLSearchParams(searchParamsEntries);
-	const urlQuery = searchParams.toString();
-
-	const url = `${HELIX_API_BASE_PATH}/channel_points/custom_rewards/redemptions?${urlQuery}`;
-	const options = {
-		method: 'PATCH',
-		body: JSON.stringify({ status })
-	};
-	return twitchOAuth.fetchEndpointWithCredentials(process.env.CLIENT_ID, access_token, url, options);
-}
-
 /* User token require ABOVE */
 
 function storeTokens(items) {
@@ -170,7 +132,5 @@ module.exports = {
 	createCustomReward,
 	deleteCustomReward,
 	getCustomRewards,
-	getCustomRewardCard,
-	getCustomRewardRedemption,
-	updateRedemptionStatus
+	getCustomRewardCard
 };
