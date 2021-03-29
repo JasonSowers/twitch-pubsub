@@ -34,6 +34,11 @@ app.get('/auth/callback', async (req, res) => {
 		await twitchRequest.authorize(req.query.code, req.query.state);
 		console.log('authenticated');
 		//const authenticated = twitchRequest.getAuthenticated();
+
+		pubsub.connect();
+
+		storage.queryUserEntries(processUserEntries);
+
 		res.status(200).send('Twitch API authenticated.  You can close this browser window/tab.');
 	} catch (err) {
 		console.error(err);
@@ -59,10 +64,6 @@ app.listen(port, () => {
 	console.log(`App listening on port ${port}`);
 	//const open = require('open');
 	//open(twitchRequest.authorizeUrl);
-
-	pubsub.connect();
-
-	storage.queryUserEntries(processUserEntries);
 });
 
 /**
@@ -104,7 +105,7 @@ async function processUserEntries({ entries, continuationToken }) {
 
 		return false;
 
-	} catch (error) { 
+	} catch (error) {
 		// return a value below?? true to stop false to keep trying
 		// do I need a 'retry' attempt amount
 		console.error(error);
