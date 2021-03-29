@@ -21,10 +21,12 @@ app.use(bodyParser.json());
 const port = process.env.PORT || 3000;
 
 //console.log({ Authorization: 'Basic ' + (Buffer.from(process.env.CLIENT_ID + ':' + process.env.CLIENT_SECRET).toString('base64')) })
+app.get('/', (req, res) => {
+	res.status(200).send(`<a href="/authorize">Authorize</a>`);
+});
 
-app.get('/login', (req, res) => {
-	const open = require('open');
-	open(twitchRequest.authorizeUrl);
+app.get('/authorize', (req, res) => {
+	res.redirect(twitchRequest.authorizeUrl);
 });
 
 app.get('/auth/callback', async (req, res) => {
