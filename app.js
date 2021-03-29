@@ -23,17 +23,15 @@ const port = process.env.PORT || 3000;
 //console.log({ Authorization: 'Basic ' + (Buffer.from(process.env.CLIENT_ID + ':' + process.env.CLIENT_SECRET).toString('base64')) })
 
 app.get('/login', (req, res) => {
-	//const open = require('open');
-	//open(twitchRequest.authorizeUrl);
+	const open = require('open');
+	open(twitchRequest.authorizeUrl);
 });
 
 app.get('/auth/callback', async (req, res) => {
 	try {
-
 		await twitchRequest.authorize(req.query.code, req.query.state);
 		console.log('authenticated');
-		const authenticated = twitchRequest.getAuthenticated();
-
+		//const authenticated = twitchRequest.getAuthenticated();
 		res.status(200).send('Twitch API authenticated.  You can close this browser window/tab.');
 	} catch (err) {
 		console.error(err);
