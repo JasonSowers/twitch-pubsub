@@ -35,9 +35,7 @@ app.get('/auth/callback', async (req, res) => {
 		console.log('authenticated');
 		//const authenticated = twitchRequest.getAuthenticated();
 
-		pubsub.connect();
-
-		storage.queryUserEntries(processUserEntries);
+		pubsub.connect(processUserEntries);
 
 		res.status(200).send('Twitch API authenticated.  You can close this browser window/tab.');
 	} catch (err) {

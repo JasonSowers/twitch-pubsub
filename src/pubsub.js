@@ -90,7 +90,7 @@ function unlisten(topic, access_token) {
 	ws.send(JSON.stringify(message));
 }
 
-function connect() {
+function connect(processUserEntries) {
 
 	let heartbeatHandle;
 
@@ -102,6 +102,8 @@ function connect() {
 		heartbeatHandle = setInterval(heartbeat, HEARTBEAT_INTERVAL);
 
 		reconnectInterval = BACKOFF_THRESHOLD_INTERVAL;
+
+		storage.queryUserEntries(processUserEntries);
 	};
 
 	ws.onerror = (error) => {
