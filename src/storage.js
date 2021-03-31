@@ -86,7 +86,11 @@ function queryUserEntries(entriesCallback) {
 			if (error) throw error;
 
 			// iterate through results.entries with results
-			entriesCallback({ entries: results.entries, continuationToken: results.continuationToken });
+			try {
+				entriesCallback({ entries: results.entries, continuationToken: results.continuationToken });
+			} catch (error) {
+				console.error(error);
+			}
 			if (results.continuationToken) {
 				nextContinuationToken = results.continuationToken;
 			}
